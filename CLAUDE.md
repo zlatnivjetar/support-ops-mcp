@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 1B: Project Scaffold**
+**→ Milestone 1C: MCP Server & Transport Setup**
 
 Implementation plan: `docs/implementation-plan.md`
 
