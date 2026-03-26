@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 1C: MCP Server & Transport Setup**
+**→ Milestone 1E: End-to-End Verification**
 
 Implementation plan: `docs/implementation-plan.md`
 
