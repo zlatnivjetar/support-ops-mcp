@@ -86,6 +86,32 @@ async function main() {
   });
   console.log('Result:', JSON.stringify(result5.content, null, 2));
   console.log(`  isError: ${result5.isError}`);
+  console.log();
+
+  // Test 6: search_knowledge with query "billing refund"
+  console.log('=== Test 6: search_knowledge (query="billing refund") ===');
+  const result6 = await client.callTool({
+    name: 'search_knowledge',
+    arguments: { query: 'billing refund', top_k: 5 },
+  });
+  console.log('Result:', JSON.stringify(result6.content, null, 2));
+  const knowledgeData = JSON.parse((result6.content[0] as { text: string }).text);
+  console.log(`  result_count: ${knowledgeData.result_count}`);
+  if (knowledgeData.results.length > 0) {
+    const first = knowledgeData.results[0];
+    console.log(`  first result: "${first.document_title}" (similarity: ${first.similarity})`);
+    console.log(`  has content: ${Boolean(first.content)}`);
+  }
+  console.log();
+
+  // Test 7: search_knowledge with empty query — should return Zod validation error
+  console.log('=== Test 7: search_knowledge (empty query — expect validation error) ===');
+  const result7 = await client.callTool({
+    name: 'search_knowledge',
+    arguments: { query: '' },
+  });
+  console.log('Result:', JSON.stringify(result7.content, null, 2));
+  console.log(`  isError: ${result7.isError}`);
 
   await client.close();
   console.log('\nDone — all tests passed.');

@@ -96,3 +96,19 @@
 **Key files:** `src/tools/get-ticket.ts`, `src/tools/index.ts`, `tests/client-test.ts`, `package.json`
 
 **Gotchas:** None.
+
+---
+
+## Milestone 2B — `search_knowledge` Tool
+
+**What changed:** Implemented `src/tools/search-knowledge.ts` with the `search_knowledge` MCP tool. Registered it in `src/tools/index.ts`. Added Tests 6 and 7 to `tests/client-test.ts`.
+
+**Key decisions:**
+- Content is NOT truncated — the spec explicitly requires full chunk text so the LLM can use it as evidence when drafting responses.
+- `top_k` is optional (1–20, int) with no default in the Zod schema — the API default of 5 is applied server-side.
+- `AsdApiError` caught generically (no special 404 case needed — the endpoint always returns a list, never 404s on a missing entity).
+- Test 7 confirms Zod `.min(1)` catches empty queries before they reach the API, surfacing as `isError: true` with a clear validation message.
+
+**Key files:** `src/tools/search-knowledge.ts`, `src/tools/index.ts`, `tests/client-test.ts`
+
+**Gotchas:** The knowledge base in the dev environment contains test/placeholder documents (e.g. a "Test" doc with UI design notes), so similarity scores for "billing refund" are low (~0.10). The plumbing is correct — this is a data quality issue in the seed data, not a code issue.

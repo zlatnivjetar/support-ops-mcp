@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 2B: `search_knowledge` Tool**
+**→ Milestone 2C: `get_review_queue` Tool**
 
 Implementation plan: `docs/implementation-plan.md`
 

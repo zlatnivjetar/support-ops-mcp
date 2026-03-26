@@ -85,3 +85,17 @@ Everything built in 1A (the scaffold and config loader) feeds directly into `Asd
 - **Selective field projection in the output.** The raw `TicketDetail` response includes fields like `assignee_id`, `sender_id`, and the full `evidence_chunk_ids` array that add noise without helping an LLM decide what action to take. The handler maps the response to only what matters: human-readable names, the message thread, prediction scores, and a draft preview. The one non-obvious projection is `evidence_chunks` (a count) rather than `evidence_chunk_ids` (the array) — the IDs reference internal knowledge chunks the LLM can't dereference without a separate tool call.
 
 - **Automated test orchestration with `wait-on`.** Rather than requiring a developer to manually start the server before running tests, `npm test` uses `concurrently` to start the server alongside a `wait-on` process that polls `/health` every 250ms. Once the health check returns 200, the test client runs — no fixed sleeps, no race conditions. The `-k -s first` flags tell `concurrently` to kill both processes as soon as the test client exits, so the server doesn't linger. This pattern scales cleanly to CI: any environment that can run `npm test` gets the same reliable test run without extra setup steps.
+
+---
+
+## Milestone 2B: `search_knowledge` Tool
+
+`search_knowledge` performs semantic search over the support knowledge base and returns ranked document chunks — it's the retrieval half of the RAG pipeline that `generate_draft` uses internally, now exposed directly so an LLM agent can inspect source material before or after drafting a response.
+
+**Key decisions:**
+
+- **No content truncation.** Every other tool in this server trims or summarises long text fields to reduce noise (e.g. `get_ticket` caps the draft body at 500 chars). `search_knowledge` deliberately does not truncate chunk content. A knowledge chunk only has value if the LLM can read it in full — a truncated passage that cuts off mid-sentence before the relevant policy wording is worse than no result at all. The cost is slightly larger responses, but that's the right tradeoff for a retrieval tool.
+
+- **Return type is a flat list, not paginated.** The `/knowledge/search` endpoint returns a plain JSON array rather than the `PaginatedResponse<T>` wrapper used by ticket endpoints. This reflects what the endpoint actually does — it returns the top-K results by similarity score in a single shot; there's no concept of "page 2 of semantic search results." The `KnowledgeSearchResult[]` type in `types.ts` captures this accurately. If the type had been force-fit into the paginated wrapper, the handler would have needed to unwrap `.items` from a field that doesn't exist.
+
+- **Zod `.min(1)` as the first line of defence.** An empty query string sent to a vector search endpoint is technically valid but semantically meaningless — it would consume API quota and return noise. The `.min(1)` constraint on the `query` field rejects the call before it leaves the server, returning a structured MCP validation error rather than a confusing near-zero-similarity result set. This is the same principle as enum constraints on ticket filters: the schema is the contract that prevents the LLM from making calls that can't succeed.
