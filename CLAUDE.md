@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 1A: Project Scaffold**
+**→ Milestone 1B: Project Scaffold**
 
 Implementation plan: `docs/implementation-plan.md`
 

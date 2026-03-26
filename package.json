@@ -1,0 +1,37 @@
+{
+  "name": "support-ops-mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing support operations tools — ticket triage, knowledge search, draft generation with RAG citations, and review queue management.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "support-ops-mcp": "dist/index.js"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "start": "node dist/index.js",
+    "test:client": "tsx tests/client-test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["mcp", "model-context-protocol", "support-operations", "ai-tools"],
+  "author": "David Grljusic",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "express": "^5.0.0",
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsx": "latest",
+    "tsup": "latest",
+    "@types/node": "latest",
+    "@types/express": "^5.0.0"
+  }
+}
