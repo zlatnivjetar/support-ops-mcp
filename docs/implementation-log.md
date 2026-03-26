@@ -112,3 +112,19 @@
 **Key files:** `src/tools/search-knowledge.ts`, `src/tools/index.ts`, `tests/client-test.ts`
 
 **Gotchas:** The knowledge base in the dev environment contains test/placeholder documents (e.g. a "Test" doc with UI design notes), so similarity scores for "billing refund" are low (~0.10). The plumbing is correct — this is a data quality issue in the seed data, not a code issue.
+
+---
+
+## Milestone 2C — `get_review_queue` Tool
+
+**What changed:** Implemented `src/tools/get-review-queue.ts` with the `get_review_queue` MCP tool. Registered it in `src/tools/index.ts`. Added Test 8 to `tests/client-test.ts`.
+
+**Key decisions:**
+- Draft body truncated to 200 chars for the preview using `slice(0, 200) + '…'` — the full body is available via `get_ticket`. The API field is `body`; the output field is `draft_preview` to make the truncation semantically obvious.
+- API field `draft_generation_id` mapped to `draft_id` in output — cleaner for LLM consumption.
+- Test 8 guards against `isError` before `JSON.parse` — avoids a crash if the JWT lacks agent/lead role and the ASD API returns 403.
+- The ASD client method `getReviewQueue` was already implemented in 1B (all client methods were scaffolded upfront), so no client changes were needed.
+
+**Key files:** `src/tools/get-review-queue.ts`, `src/tools/index.ts`, `tests/client-test.ts`
+
+**Gotchas:** After adding the new tool, the running server must be restarted — `tsx` auto-reloads on file save but the test client was connecting to an already-running instance without the new tool registered, causing "Tool get_review_queue not found".

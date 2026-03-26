@@ -112,6 +112,29 @@ async function main() {
   });
   console.log('Result:', JSON.stringify(result7.content, null, 2));
   console.log(`  isError: ${result7.isError}`);
+  console.log();
+
+  // Test 8: get_review_queue — list pending drafts awaiting human review
+  console.log('=== Test 8: get_review_queue (default params) ===');
+  const result8 = await client.callTool({
+    name: 'get_review_queue',
+    arguments: {},
+  });
+  console.log('Result:', JSON.stringify(result8.content, null, 2));
+  if (result8.isError) {
+    console.log(`  isError: true (likely 403 — JWT lacks agent/lead role)`);
+  } else {
+    const queueData = JSON.parse((result8.content[0] as { text: string }).text);
+    console.log(`  pending_drafts count: ${queueData.pending_drafts?.length ?? 'N/A'}`);
+    console.log(`  pagination: ${JSON.stringify(queueData.pagination)}`);
+    if (queueData.pending_drafts?.length > 0) {
+      const first = queueData.pending_drafts[0];
+      console.log(`  first draft_id: ${first.draft_id}`);
+      console.log(`  first ticket_subject: ${first.ticket_subject}`);
+      console.log(`  first confidence: ${first.confidence}`);
+      console.log(`  first draft_preview length: ${first.draft_preview?.length ?? 0}`);
+    }
+  }
 
   await client.close();
   console.log('\nDone — all tests passed.');

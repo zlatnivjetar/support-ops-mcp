@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 2C: `get_review_queue` Tool**
+**→ Milestone 2D: Read-Only Tools Verification**
 
 Implementation plan: `docs/implementation-plan.md`
 

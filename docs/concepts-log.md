@@ -99,3 +99,17 @@ Everything built in 1A (the scaffold and config loader) feeds directly into `Asd
 - **Return type is a flat list, not paginated.** The `/knowledge/search` endpoint returns a plain JSON array rather than the `PaginatedResponse<T>` wrapper used by ticket endpoints. This reflects what the endpoint actually does — it returns the top-K results by similarity score in a single shot; there's no concept of "page 2 of semantic search results." The `KnowledgeSearchResult[]` type in `types.ts` captures this accurately. If the type had been force-fit into the paginated wrapper, the handler would have needed to unwrap `.items` from a field that doesn't exist.
 
 - **Zod `.min(1)` as the first line of defence.** An empty query string sent to a vector search endpoint is technically valid but semantically meaningless — it would consume API quota and return noise. The `.min(1)` constraint on the `query` field rejects the call before it leaves the server, returning a structured MCP validation error rather than a confusing near-zero-similarity result set. This is the same principle as enum constraints on ticket filters: the schema is the contract that prevents the LLM from making calls that can't succeed.
+
+---
+
+## Milestone 2C: `get_review_queue` Tool
+
+`get_review_queue` lists AI-generated draft responses that are waiting for a human agent to approve, reject, or escalate — it exposes the FIFO review queue so an LLM agent can surface the oldest unreviewed drafts and hand them off to `review_draft` for a decision.
+
+**Key decisions:**
+
+- **Preview truncation at the tool layer, not the API layer.** The ASD API returns the full draft body in every queue item. The tool truncates it to 200 characters before sending it to the LLM. This is deliberate: the queue is for triage, not reading — the LLM needs enough text to identify what the draft is about, not the full response. If the LLM actually needs to read the draft in full (e.g. to approve it with edits), it calls `get_ticket`, which returns the complete body. The 200-char limit also keeps queue responses compact when there are many pending drafts.
+
+- **Field renaming to match the LLM's mental model.** The API returns `draft_generation_id` — an internal identifier that names the database table it came from. The tool exposes it as `draft_id`, which is what an agent would naturally say when talking about "the draft to review." Similarly, the raw `body` field becomes `draft_preview` to signal upfront that the content is truncated. Renaming at the serialisation boundary keeps the LLM-facing vocabulary consistent with how the tools describe themselves without changing the underlying API contract.
+
+- **Defensive `isError` check before `JSON.parse` in the test client.** The review queue endpoint requires agent or lead role — a JWT with only basic user permissions gets a 403, which the tool surfaces as `isError: true` with a plain text message instead of JSON. The test added in this milestone checks `result.isError` before attempting `JSON.parse` so the test client exits cleanly rather than crashing with a syntax error. This pattern applies to any tool that may legitimately return a role-gated error: always branch on `isError` before assuming the response body is structured data.
