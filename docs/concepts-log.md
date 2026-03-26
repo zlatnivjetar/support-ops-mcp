@@ -71,3 +71,17 @@ Everything built in 1A (the scaffold and config loader) feeds directly into `Asd
 ### How these pieces connect
 
 1E is the validation gate for everything in Milestone 1: if the transport, server, tool registration, ASD client, and config all work together correctly, the test passes. The session-based transport fix made here is permanent infrastructure — all future tools (Milestones 2 and 3) rely on the same session routing. If the session map were ever accidentally cleared or the `onsessioninitialized` callback missed, every tool call after `initialize` would silently fail with the same `-32601` error.
+
+---
+
+## Milestone 2A: `get_ticket` Tool
+
+`get_ticket` fetches the full detail record for a single ticket — conversation thread, latest AI prediction, and latest draft — and is the natural second step in the support workflow after `search_tickets` narrows down which ticket to inspect.
+
+**Key decisions:**
+
+- **Status-specific 404 messages.** When the ASD API returns a 404, the handler returns `"Ticket not found: {ticket_id}"` rather than the generic `AsdApiError` message. A generic error says the request failed; a specific one tells the LLM exactly what went wrong and what to do differently (try a different ID, or confirm the ticket exists first). Every other HTTP error still surfaces the raw detail and status code for debuggability.
+
+- **Selective field projection in the output.** The raw `TicketDetail` response includes fields like `assignee_id`, `sender_id`, and the full `evidence_chunk_ids` array that add noise without helping an LLM decide what action to take. The handler maps the response to only what matters: human-readable names, the message thread, prediction scores, and a draft preview. The one non-obvious projection is `evidence_chunks` (a count) rather than `evidence_chunk_ids` (the array) — the IDs reference internal knowledge chunks the LLM can't dereference without a separate tool call.
+
+- **Automated test orchestration with `wait-on`.** Rather than requiring a developer to manually start the server before running tests, `npm test` uses `concurrently` to start the server alongside a `wait-on` process that polls `/health` every 250ms. Once the health check returns 200, the test client runs — no fixed sleeps, no race conditions. The `-k -s first` flags tell `concurrently` to kill both processes as soon as the test client exits, so the server doesn't linger. This pattern scales cleanly to CI: any environment that can run `npm test` gets the same reliable test run without extra setup steps.

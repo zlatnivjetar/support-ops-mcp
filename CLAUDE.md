@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 2A: `get_ticket` Tool**
+**→ Milestone 2B: `search_knowledge` Tool**
 
 Implementation plan: `docs/implementation-plan.md`
 

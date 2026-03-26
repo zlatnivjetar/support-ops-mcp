@@ -80,3 +80,19 @@
 **Gotchas:**
 - Stateless MCP transport is incompatible with the standard `StreamableHTTPClientTransport` — the client sends `initialize` once, but stateless mode creates a fresh server per POST that rejects subsequent methods. Session-based mode is required.
 - An old server process holding port 3001 caused the new server to silently fail to bind, hiding debug output.
+
+---
+
+## Milestone 2A — `get_ticket` Tool
+
+**What changed:** Implemented `src/tools/get-ticket.ts` with the `get_ticket` MCP tool. Registered it in `src/tools/index.ts`. Added Tests 4 and 5 to `tests/client-test.ts`. Added `npm test` script using `concurrently` + `wait-on` to auto-start the server, wait for `/health`, run the test client, then kill both processes.
+
+**Key decisions:**
+- Draft body truncated to 500 chars in the summary (plan spec); full body available via the same endpoint.
+- 404 errors surface as `"Ticket not found: {ticket_id}"` rather than the generic AsdApiError message — more actionable for the LLM.
+- `evidence_chunks` exposes the count of `evidence_chunk_ids` (not the IDs themselves) — the IDs aren't useful to the LLM at summary time.
+- `npm test` uses `wait-on http://127.0.0.1:3001/health` rather than a fixed sleep — reliable and zero added friction.
+
+**Key files:** `src/tools/get-ticket.ts`, `src/tools/index.ts`, `tests/client-test.ts`, `package.json`
+
+**Gotchas:** None.

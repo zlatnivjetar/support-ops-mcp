@@ -8,7 +8,9 @@
   "bin": {
     "support-ops-mcp": "dist/index.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -17,9 +19,15 @@
     "build": "tsup src/index.ts --format esm --dts --clean",
     "start": "node dist/index.js",
     "test:client": "tsx tests/client-test.ts",
+    "test": "concurrently -k -s first --names server,tests \"npm run dev\" \"wait-on http://127.0.0.1:3001/health && npm run test:client\"",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["mcp", "model-context-protocol", "support-operations", "ai-tools"],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "support-operations",
+    "ai-tools"
+  ],
   "author": "David Grljusic",
   "license": "MIT",
   "dependencies": {
@@ -28,10 +36,12 @@
     "zod": "^3.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "tsx": "latest",
-    "tsup": "latest",
+    "@types/express": "^5.0.0",
     "@types/node": "latest",
-    "@types/express": "^5.0.0"
+    "concurrently": "^9.2.1",
+    "tsup": "latest",
+    "tsx": "latest",
+    "typescript": "^5.0.0",
+    "wait-on": "^9.0.4"
   }
 }

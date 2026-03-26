@@ -56,6 +56,36 @@ async function main() {
     arguments: { category: 'billing', sort_by: 'priority', sort_order: 'desc', per_page: 5 },
   });
   console.log('Result:', JSON.stringify(result3.content, null, 2));
+  console.log();
+
+  // Test 4: get_ticket — fetch full detail for the first ticket from Test 1
+  console.log('=== Test 4: get_ticket (first ticket from Test 1) ===');
+  const ticketsData = JSON.parse((result1.content[0] as { text: string }).text);
+  const firstTicketId = ticketsData.tickets[0]?.id;
+  if (!firstTicketId) {
+    console.log('No tickets returned from Test 1, skipping get_ticket test.');
+  } else {
+    console.log(`Fetching ticket ID: ${firstTicketId}`);
+    const result4 = await client.callTool({
+      name: 'get_ticket',
+      arguments: { ticket_id: firstTicketId },
+    });
+    console.log('Result:', JSON.stringify(result4.content, null, 2));
+    const detail = JSON.parse((result4.content[0] as { text: string }).text);
+    console.log(`  messages: ${detail.messages?.length ?? 'N/A'}`);
+    console.log(`  prediction: ${detail.prediction ? 'present' : 'null'}`);
+    console.log(`  draft: ${detail.draft ? 'present' : 'null'}`);
+  }
+  console.log();
+
+  // Test 5: get_ticket with non-existent UUID — should return clean error
+  console.log('=== Test 5: get_ticket (non-existent UUID) ===');
+  const result5 = await client.callTool({
+    name: 'get_ticket',
+    arguments: { ticket_id: '00000000-0000-0000-0000-000000000000' },
+  });
+  console.log('Result:', JSON.stringify(result5.content, null, 2));
+  console.log(`  isError: ${result5.isError}`);
 
   await client.close();
   console.log('\nDone — all tests passed.');
