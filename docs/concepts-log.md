@@ -113,3 +113,17 @@ Everything built in 1A (the scaffold and config loader) feeds directly into `Asd
 - **Field renaming to match the LLM's mental model.** The API returns `draft_generation_id` — an internal identifier that names the database table it came from. The tool exposes it as `draft_id`, which is what an agent would naturally say when talking about "the draft to review." Similarly, the raw `body` field becomes `draft_preview` to signal upfront that the content is truncated. Renaming at the serialisation boundary keeps the LLM-facing vocabulary consistent with how the tools describe themselves without changing the underlying API contract.
 
 - **Defensive `isError` check before `JSON.parse` in the test client.** The review queue endpoint requires agent or lead role — a JWT with only basic user permissions gets a 403, which the tool surfaces as `isError: true` with a plain text message instead of JSON. The test added in this milestone checks `result.isError` before attempting `JSON.parse` so the test client exits cleanly rather than crashing with a syntax error. This pattern applies to any tool that may legitimately return a role-gated error: always branch on `isError` before assuming the response body is structured data.
+
+---
+
+## Milestone 2D: Read-Only Tools Verification
+
+Milestone 2D was a verification pass — no new code was written. It confirmed that all four read-only tools (`search_tickets`, `get_ticket`, `search_knowledge`, `get_review_queue`) work correctly end-to-end against the live ASD API before moving on to the action tools in Milestone 3.
+
+**Key decisions:**
+
+- **Verify the full workflow, not just individual tools.** The test plan chains tools together in the order an agent would actually use them — `search_tickets` to find a ticket, `get_ticket` to read its detail, `search_knowledge` to retrieve supporting material. Running each tool in isolation would miss integration issues; running them as a workflow catches cases where one tool's output format doesn't match another tool's expected input (e.g. the ticket ID field name in the search response must match what `get_ticket` accepts as `ticket_id`).
+
+- **Error cases are first-class test targets.** Three negative cases were verified alongside the happy paths: a non-existent UUID, an empty query string, and a role-gated 403. Testing only the success path leaves a gap — if error handling is broken, the LLM will receive a crash or raw exception text instead of a structured `isError` response, which it can't act on gracefully. Verifying error shape at this stage means the error contract is confirmed before action tools build on top of it.
+
+- **No code changes signals the milestone was built correctly the first time.** A verification milestone that requires fixes is a sign that the preceding implementation milestone was incomplete. The fact that 2D required zero changes confirms that the tool pattern established in 1D — Zod validation → ASD client call → structured JSON response → `isError` on API error — was applied consistently across all four tools. This matters because Milestone 3 introduces mutation tools where errors have real consequences; knowing the error handling pattern is solid reduces risk.

@@ -128,3 +128,18 @@
 **Key files:** `src/tools/get-review-queue.ts`, `src/tools/index.ts`, `tests/client-test.ts`
 
 **Gotchas:** After adding the new tool, the running server must be restarted — `tsx` auto-reloads on file save but the test client was connecting to an already-running instance without the new tool registered, causing "Tool get_review_queue not found".
+
+---
+
+## Milestone 2D — Read-Only Tools Verification
+
+**What changed:** No code changes — this was a manual verification pass against the live ASD API.
+
+**Key decisions:**
+- All three test scenarios from the plan were executed via `npm run test:client` against a live server instance.
+- Verification confirmed the investigation workflow (search → get_ticket → search_knowledge) and review queue workflow (get_review_queue → get_ticket) both return real ASD data.
+- Error handling confirmed: non-existent UUID → clean `isError: true` with "Ticket not found"; empty query → Zod validation error before hitting the API.
+
+**Key files:** `tests/client-test.ts` (no changes needed — all 8 tests already covered the verification criteria)
+
+**Gotchas:** None — all 4 tools passed on the first run.

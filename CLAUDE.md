@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 2D: Read-Only Tools Verification**
+**→ Milestone 3A: `triage_ticket` Tool**
 
 Implementation plan: `docs/implementation-plan.md`
 
