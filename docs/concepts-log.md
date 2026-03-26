@@ -47,3 +47,27 @@ Everything built in 1A (the scaffold and config loader) feeds directly into `Asd
 ### How these pieces connect
 
 `createServer()` from 1C is the assembly point for everything: it takes the config, builds an `AsdClient`, registers all tools, and returns a ready `McpServer` — the transports in `transport.ts` just call it and plug in the delivery mechanism. The `registerAllTools` barrel in `src/tools/index.ts` is the single place where new tools are added as subsequent milestones land; if a tool is implemented but not imported here, it silently won't appear in the server's tool manifest. The error handling pattern established in `search_tickets` — catch `AsdApiError`, return `isError: true`, re-throw anything unexpected — must be followed by every future tool or a bad API response will crash the MCP connection instead of returning a graceful error to the LLM.
+
+---
+
+## Milestone 1E: End-to-End Verification
+
+### What we built and why
+
+1E proved the full stack works — MCP client connects, discovers tools, calls them, and gets real data back from the ASD API. It also surfaced and fixed a fundamental architectural mismatch in the HTTP transport: the originally planned stateless pattern is incompatible with how the MCP client SDK actually works, requiring a switch to session-based transport. Without this milestone, the architecture would have looked correct on paper but failed at runtime.
+
+---
+
+### Key concepts under the hood
+
+**MCP protocol lifecycle and why stateless doesn't work.** The MCP protocol requires a handshake — the client sends `initialize`, the server responds with its capabilities, and only then can the client call tools. In stateless HTTP mode (new server per POST), the `initialize` request lands on one server instance, but the very next request (`tools/list`) lands on a fresh instance that has never been initialized — so it correctly returns "Method not found." The fix is session-based mode: the server generates a session ID during `initialize`, stores the live server instance in a map, and all subsequent requests with that session ID are routed to the same instance. Without this session affinity, the MCP protocol's state machine and the HTTP server's instance lifecycle are fundamentally at odds.
+
+**Session lifecycle management: store on init, clean up on close.** Keeping server instances in an in-memory map introduces a resource leak risk if sessions are never removed. The transport fires an `onsessioninitialized` callback when the session ID is assigned (during `initialize`), and an `onclose` callback when the client disconnects or times out. The store-on-init / delete-on-close pattern means the map stays bounded to active sessions. If the cleanup were missing, every client connection would add a permanent entry — a slow memory leak that would only manifest under load.
+
+**Long-lived JWTs for server-to-server integrations.** Browser-based auth flows issue short-lived tokens (the ASD frontend hardcodes 1h) because they're designed for interactive users who can re-authenticate. A server-to-server integration that can't prompt a user needs a token that outlasts a deploy cycle. The ASD seed script (`mint_tokens.py`) signs tokens directly with the shared secret, bypassing the web route entirely, allowing arbitrary expiry. The tradeoff is that this token can't be revoked without rotating the secret — acceptable for a dev/demo environment, but worth noting for production.
+
+---
+
+### How these pieces connect
+
+1E is the validation gate for everything in Milestone 1: if the transport, server, tool registration, ASD client, and config all work together correctly, the test passes. The session-based transport fix made here is permanent infrastructure — all future tools (Milestones 2 and 3) rely on the same session routing. If the session map were ever accidentally cleared or the `onsessioninitialized` callback missed, every tool call after `initialize` would silently fail with the same `-32601` error.

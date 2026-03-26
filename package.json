@@ -13,7 +13,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx --env-file=.env src/index.ts",
     "build": "tsup src/index.ts --format esm --dts --clean",
     "start": "node dist/index.js",
     "test:client": "tsx tests/client-test.ts",

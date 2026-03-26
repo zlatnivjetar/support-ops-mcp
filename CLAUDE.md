@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 1E: End-to-End Verification**
+**→ Milestone 2A: `get_ticket` Tool**
 
 Implementation plan: `docs/implementation-plan.md`
 

@@ -61,3 +61,22 @@
 **Key files:** `src/tools/search-tickets.ts`, `src/tools/index.ts`, `src/server.ts`
 
 **Gotchas:** None.
+
+---
+
+## Milestone 1E — End-to-End Verification
+
+**What changed:** Implemented `tests/client-test.ts` — an MCP SDK `Client` that connects via Streamable HTTP and runs three `search_tickets` tests against the live ASD API.
+
+**Key decisions:**
+- Session-based HTTP transport (one `McpServer` + `StreamableHTTPServerTransport` per session, reused across requests). The originally planned stateless-per-request pattern failed: the MCP client sends `initialize` once and reuses the session, but a fresh server instance on the second request has no protocol state and returns `-32601 Method not found` for `tools/list`.
+- `onsessioninitialized` callback stores the server/transport pair in a `Map<sessionId, Session>`. Subsequent requests with `mcp-session-id` header route to the stored transport instance.
+- `transport.onclose` cleans up the session map when a client disconnects.
+- JWT obtained via `seed/mint_tokens.py` with 90-day expiry (offline signing — bypasses the Next.js `/api/token` route which hardcodes 1h expiry). Real values kept out of `.env.example`.
+- `tsx --env-file=.env` loads the env file. Requires killing any lingering server process before restarting.
+
+**Key files:** `tests/client-test.ts`, `src/transport.ts`, `.env.example`, `package.json`
+
+**Gotchas:**
+- Stateless MCP transport is incompatible with the standard `StreamableHTTPClientTransport` — the client sends `initialize` once, but stateless mode creates a fresh server per POST that rejects subsequent methods. Session-based mode is required.
+- An old server process holding port 3001 caused the new server to silently fail to bind, hiding debug output.
