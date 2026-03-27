@@ -16,6 +16,7 @@ import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Config } from './config.js';
+import { log } from './logger.js';
 import { createServer } from './server.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
@@ -25,6 +26,7 @@ interface Session {
 }
 
 export async function startHttpTransport(config: Config): Promise<void> {
+  log('info', 'HTTP transport starting', { port: config.port });
   const app = createMcpExpressApp();
   const sessions = new Map<string, Session>();
 
@@ -44,12 +46,14 @@ export async function startHttpTransport(config: Config): Promise<void> {
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id) => {
         sessions.set(id, { server, transport });
+        log('info', 'MCP session created', { sessionId: id });
       },
     });
 
     transport.onclose = () => {
       if (transport.sessionId) {
         sessions.delete(transport.sessionId);
+        log('info', 'MCP session closed', { sessionId: transport.sessionId });
       }
     };
 
@@ -63,7 +67,7 @@ export async function startHttpTransport(config: Config): Promise<void> {
   });
 
   app.listen(config.port, '127.0.0.1', () => {
-    console.log(`Support Ops MCP Server (HTTP) listening on http://127.0.0.1:${config.port}/mcp`);
+    log('info', 'HTTP server listening', { url: `http://127.0.0.1:${config.port}/mcp` });
   });
 }
 
@@ -71,6 +75,5 @@ export async function startStdioTransport(config: Config): Promise<void> {
   const server = createServer(config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // stdio transport runs until the process is killed
-  console.error('Support Ops MCP Server (stdio) connected'); // stderr so it doesn't interfere with JSON-RPC on stdout
+  log('info', 'stdio transport connected');
 }

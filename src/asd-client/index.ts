@@ -9,6 +9,7 @@
  */
 
 import type { Config } from '../config.js';
+import { log } from '../logger.js';
 import type {
   PaginatedResponse,
   TicketListItem,
@@ -56,29 +57,45 @@ export class AsdClient {
       'Content-Type': 'application/json',
     };
 
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(timeoutMs ?? this.defaultTimeoutMs),
-    });
+    const start = performance.now();
+    const endpoint = `${method} ${path}`;
 
-    if (!response.ok) {
-      const rawText = await response.text();
-      let detail: string;
-      try {
-        const errorBody = JSON.parse(rawText);
-        detail = errorBody.detail || JSON.stringify(errorBody);
-      } catch {
-        detail = rawText || `HTTP ${response.status}`;
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(timeoutMs ?? this.defaultTimeoutMs),
+      });
+
+      const durationMs = Math.round(performance.now() - start);
+
+      if (!response.ok) {
+        const rawText = await response.text();
+        let detail: string;
+        try {
+          const errorBody = JSON.parse(rawText);
+          detail = errorBody.detail || JSON.stringify(errorBody);
+        } catch {
+          detail = rawText || `HTTP ${response.status}`;
+        }
+        log('warn', 'ASD API error', { endpoint, status: response.status, durationMs });
+        throw new AsdApiError(response.status, detail, `${method} ${path}`);
       }
-      throw new AsdApiError(response.status, detail, `${method} ${path}`);
+
+      log('info', 'ASD API call', { endpoint, status: response.status, durationMs });
+
+      // 204 No Content
+      if (response.status === 204) return undefined as T;
+
+      return response.json() as Promise<T>;
+    } catch (err) {
+      if (!(err instanceof AsdApiError)) {
+        const durationMs = Math.round(performance.now() - start);
+        log('error', 'ASD API call failed', { endpoint, durationMs, error: String(err) });
+      }
+      throw err;
     }
-
-    // 204 No Content
-    if (response.status === 204) return undefined as T;
-
-    return response.json() as Promise<T>;
   }
 
   private buildQuery(params: Record<string, unknown>): string {

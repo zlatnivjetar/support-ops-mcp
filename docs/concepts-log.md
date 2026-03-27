@@ -2,6 +2,20 @@
 
 ---
 
+## Milestone 4C: Request Logging
+
+Milestone 4C adds structured JSON-line logging to stderr across the entire request path — from server startup through session lifecycle events to individual ASD API calls with timing — giving operators visibility into what the server is doing without touching any tool logic.
+
+**Key decisions:**
+
+- **Zero-dependency logger over a library.** A single `process.stderr.write(JSON.stringify(entry) + '\n')` call is sufficient for a single-purpose server. Pulling in `pino` or `winston` would add transitive dependencies, configuration surface, and version pinning concerns for a use case that needs exactly one output format. The tradeoff is no log rotation, levels filtering, or pretty-printing — acceptable for a server that is expected to be run behind a process supervisor that captures stderr.
+
+- **`AsdApiError` excluded from the catch-branch log to avoid double entries.** The `request()` method logs a `warn` entry before throwing `AsdApiError`, then re-throws into a `catch` block that logs failures. If `AsdApiError` weren't excluded from that catch branch, every API error would produce two log lines — one `warn` with the status code and one `error` without it — making log parsing ambiguous. Only truly unexpected errors (network failures, timeouts, `DOMException`) reach the `error` branch.
+
+- **All log output goes to stderr, enforced by the logger's design.** In stdio mode stdout carries the JSON-RPC stream — any non-protocol bytes written there corrupt the connection. Previously `transport.ts` used `console.log` for the HTTP startup message (stdout) and `console.error` for the stdio message (stderr), relying on the caller to pick the right one. Routing everything through `log()`, which always calls `process.stderr.write`, makes the invariant impossible to violate accidentally when adding future log calls.
+
+---
+
 ## Milestone 4B: Fetch Timeout & Graceful Degradation
 
 Milestone 4B adds a time-bounded fetch to every ASD API call by passing `AbortSignal.timeout()` to Node's native `fetch`, and wires the resulting `DOMException` through the shared error formatter so timeouts surface as clean `isError` responses rather than unhandled exceptions.

@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 4C: Request Logging**
+**→ Milestone 4D: Hardening Verification**
 
 Implementation plan: `docs/implementation-plan-part2.md`
 

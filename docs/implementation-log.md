@@ -2,6 +2,21 @@
 
 ---
 
+## Milestone 4C — Request Logging
+
+**What changed:** Created `src/logger.ts` — a minimal structured logger that writes JSON lines to stderr. Wired it into `AsdClient.request()` (logs endpoint, HTTP status, and duration on every call; logs errors separately so `AsdApiError` isn't double-logged). Added session lifecycle logs to `src/transport.ts` (HTTP transport starting, session created, session closed). Added server startup log to `src/index.ts`. Replaced the two remaining `console.log`/`console.error` calls in `transport.ts` with `log()`.
+
+**Key decisions:**
+- No external logging library — `process.stderr.write` with `JSON.stringify` is sufficient for a single-purpose server and keeps the dependency count at zero.
+- `AsdApiError` is excluded from the `catch` branch log in `request()` to avoid double-logging: the error path already logs via `log('warn', ...)` before throwing, so re-logging in the catch would produce duplicate entries.
+- All output goes to stderr — stdout is reserved for JSON-RPC in stdio mode. This was already the convention for `console.error`; `log()` enforces it by design.
+
+**Files touched:** `src/logger.ts` (new), `src/asd-client/index.ts`, `src/transport.ts`, `src/index.ts`
+
+**Gotchas:** None — `npm test` passed without modification. The `wait-on` health check polls the HTTP endpoint directly, so switching the startup message from `console.log` (stdout) to `log()` (stderr) had no effect on test reliability.
+
+---
+
 ## Milestone 4B — Fetch Timeout & Graceful Degradation
 
 **What changed:** Added `AbortSignal.timeout()` to `AsdClient.request()`. Added `requestTimeoutMs` to `Config` (sourced from `ASD_TIMEOUT_MS`, default 30s). AI pipeline endpoints (`triageTicket`, `generateDraft`) use a 55s override. Added `TimeoutError` and `AbortError` handling in `formatToolError`. Added `ASD_TIMEOUT_MS` to `.env.example`. Fixed a pre-existing test client crash: Test 4 was calling `JSON.parse` on an error string when Test 1 returned a 500 from the ASD API.
