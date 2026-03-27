@@ -96,12 +96,14 @@ async function main() {
     arguments: { query: 'billing refund', top_k: 5 },
   });
   console.log('Result:', JSON.stringify(result6.content, null, 2));
-  const knowledgeData = JSON.parse((result6.content[0] as { text: string }).text);
-  console.log(`  result_count: ${knowledgeData.result_count}`);
-  if (knowledgeData.results.length > 0) {
-    const first = knowledgeData.results[0];
-    console.log(`  first result: "${first.document_title}" (similarity: ${first.similarity})`);
-    console.log(`  has content: ${Boolean(first.content)}`);
+  const knowledgeData = result6.isError ? null : JSON.parse((result6.content[0] as { text: string }).text);
+  if (knowledgeData) {
+    console.log(`  result_count: ${knowledgeData.result_count}`);
+    if (knowledgeData.results.length > 0) {
+      const first = knowledgeData.results[0];
+      console.log(`  first result: "${first.document_title}" (similarity: ${first.similarity})`);
+      console.log(`  has content: ${Boolean(first.content)}`);
+    }
   }
   console.log();
 
@@ -342,7 +344,7 @@ async function main() {
     name: 'search_tickets',
     arguments: { status: 'open', per_page: 5 },
   });
-  const saTickets = JSON.parse((saSearchResult.content[0] as { text: string }).text).tickets ?? [];
+  const saTickets = saSearchResult.isError ? [] : (JSON.parse((saSearchResult.content[0] as { text: string }).text).tickets ?? []);
   // Pick a ticket that hasn't been used in the unit tests above
   const saTicket = saTickets.find((t: { id: string }) => t.id !== firstTicketId) ?? saTickets[0];
   const saId: string | undefined = saTicket?.id;
@@ -492,7 +494,7 @@ async function main() {
     name: 'search_tickets',
     arguments: { category: 'billing', status: 'open', per_page: 3 },
   });
-  const scTickets = JSON.parse((scTicketSearch.content[0] as { text: string }).text).tickets ?? [];
+  const scTickets = scTicketSearch.isError ? [] : (JSON.parse((scTicketSearch.content[0] as { text: string }).text).tickets ?? []);
   const scTicketId: string | undefined = scTickets[0]?.id;
   console.log(`  search_tickets (billing, open): ${scTickets.length} result(s)${scTicketId ? `, using ${scTicketId}` : ''}`);
 

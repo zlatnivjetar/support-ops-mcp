@@ -2,6 +2,20 @@
 
 ---
 
+## Milestone 4D: Hardening Verification
+
+Milestone 4D is a verification-only pass confirming that the three hardening changes from 4A–4C behave correctly end-to-end: consistent error shapes, timeout handling, and structured logging all work together under real failure conditions.
+
+**Key decisions:**
+
+- **Targeted verifier script over running the full test suite with env overrides.** The existing test client was written for the happy path and crashed on `JSON.parse` whenever a tool returned an error response — making it unsuitable for scenarios where every call is expected to fail. A 20-line verifier (`verify-hardening.ts`) that calls one tool and reports `isError`/message gives a precise signal without noise. The full test client's unsafe parses were also fixed as a side effect, making it robust for future error-condition runs.
+
+- **Node.js runner script for cross-platform env overrides.** The standard Unix pattern of `VAR=value command` doesn't work on Windows because concurrently (and other Node.js tools) spawn child processes via `cmd.exe`, which doesn't support inline env var syntax. A small `.mjs` runner that reads `.env`, merges overrides in JavaScript, and spawns the server with the combined env object works identically on all platforms and makes the override mechanism explicit rather than relying on shell behaviour.
+
+- **Port ownership must be verified between successive server spawns.** When running two back-to-back server instances with different configs, killing a child process via `child.kill()` on Windows doesn't synchronously free the port — the process lingers briefly while TCP sockets drain. The second spawn finds the port already bound, fails silently (health endpoint still responds from the old server), and the verifier hits the wrong server. The fix is to confirm port 3001 is free before each spawn, not just to call `kill()` and immediately proceed.
+
+---
+
 ## Milestone 4C: Request Logging
 
 Milestone 4C adds structured JSON-line logging to stderr across the entire request path — from server startup through session lifecycle events to individual ASD API calls with timing — giving operators visibility into what the server is doing without touching any tool logic.

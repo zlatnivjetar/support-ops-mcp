@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 4D: Hardening Verification**
+**→ Milestone 5A: Claude Code Integration**
 
 Implementation plan: `docs/implementation-plan-part2.md`
 

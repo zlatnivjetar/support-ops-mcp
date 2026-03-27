@@ -2,6 +2,26 @@
 
 ---
 
+## Milestone 4D — Hardening Verification
+
+**What changed:** No new production code. Fixed three additional unsafe `JSON.parse` calls in the test client that would crash when tool responses returned `isError: true` (lines 99, 345, 495 in `client-test.ts`). Added `tests/verify-hardening.ts` — a minimal MCP client that calls one tool and reports `isError`/message, used for targeted timeout and unreachable scenarios. Added `tests/run-hardening-verify.mjs` — a Node.js runner that spawns the server with env overrides, polls the health endpoint, runs the verifier, and kills the server.
+
+**Verification results:**
+- `npm test`: all 18 unit tests + 4 workflow scenarios passed
+- Stderr showed JSON log lines with `endpoint`, `status`, `durationMs` on every ASD API call
+- `ASD_TIMEOUT_MS=1`: `search_tickets timed out — the ASD backend took too long to respond. Try again.` (isError: true)
+- `ASD_API_URL=http://localhost:9999`: `ASD API is unreachable — the backend may be down or the URL may be misconfigured. Check ASD_API_URL and try again.` (isError: true, `error` log entry with durationMs: 9)
+
+**Key decisions:**
+- Used a Node.js runner script rather than shell env var syntax (`VAR=value cmd`) because Windows cmd.exe doesn't support inline env var assignment — shell syntax only works in bash but concurrently spawns via cmd.exe on Windows.
+- Fixed the test client's unsafe `JSON.parse` calls as a prerequisite to running the env-override scenarios — without these guards, the test client would crash at Test 6 / Scenario A whenever any tool returned an error, masking the actual verification result.
+
+**Files touched:** `tests/client-test.ts`, `tests/verify-hardening.ts` (new), `tests/run-hardening-verify.mjs` (new), `CLAUDE.md`
+
+**Gotchas:** The first server spawned by `run-hardening-verify.mjs` was not fully killed before the second run, causing the second test to hit the stale 1ms-timeout server instead of the new unreachable server. Fixed by adding an explicit `taskkill` between runs.
+
+---
+
 ## Milestone 4C — Request Logging
 
 **What changed:** Created `src/logger.ts` — a minimal structured logger that writes JSON lines to stderr. Wired it into `AsdClient.request()` (logs endpoint, HTTP status, and duration on every call; logs errors separately so `AsdApiError` isn't double-logged). Added session lifecycle logs to `src/transport.ts` (HTTP transport starting, session created, session closed). Added server startup log to `src/index.ts`. Replaced the two remaining `console.log`/`console.error` calls in `transport.ts` with `log()`.
