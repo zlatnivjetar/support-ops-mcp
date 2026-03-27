@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 4B: Fetch Timeout & Graceful Degradation**
+**→ Milestone 4C: Request Logging**
 
 Implementation plan: `docs/implementation-plan-part2.md`
 

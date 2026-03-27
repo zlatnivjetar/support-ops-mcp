@@ -2,6 +2,20 @@
 
 ---
 
+## Milestone 4B: Fetch Timeout & Graceful Degradation
+
+Milestone 4B adds a time-bounded fetch to every ASD API call by passing `AbortSignal.timeout()` to Node's native `fetch`, and wires the resulting `DOMException` through the shared error formatter so timeouts surface as clean `isError` responses rather than unhandled exceptions.
+
+**Key decisions:**
+
+- **`AbortSignal.timeout()` over a manual `AbortController` + `setTimeout`.** Node 20's built-in `AbortSignal.timeout(ms)` creates a self-cancelling signal in one call — no timer handle to clear, no `finally` block needed. A manual controller requires pairing every `setTimeout` with a `clearTimeout` on success, which is easy to miss. Both approaches throw the same `DOMException`, but the built-in is the idiomatic Node 20 pattern and removes a whole class of timer-leak bugs.
+
+- **Per-endpoint timeout override for AI pipeline calls.** A single global timeout would have to be large enough for `generateDraft` (observed ~21s) while still being low enough to fail before Railway's 60s gateway kills the connection. Setting the global default to 30s and giving `triageTicket`/`generateDraft` an explicit 55s override lets each endpoint be bounded tightly to its actual behaviour — fast reads fail fast, slow AI calls get the headroom they need. The 55s ceiling matters: if the override exceeded Railway's 60s gateway timeout, the gateway would terminate the connection with a 504 before the `AbortSignal` ever fired, meaning the server would never see the abort and the tool would crash instead of returning a clean error.
+
+- **`TimeoutError` is a `DOMException`, not a `TypeError`.** Network errors (unreachable host) arrive as `TypeError` with "fetch failed". Timeout errors from `AbortSignal.timeout()` arrive as `DOMException { name: 'TimeoutError' }`. Conflating them would mean timeout messages showing up as "ASD API is unreachable" — accurate about the symptom but wrong about the cause, sending the operator to check `ASD_API_URL` when they should be investigating backend latency. The `formatToolError` branch order is therefore: `AsdApiError` → `TimeoutError` → `AbortError` → network `TypeError` → generic.
+
+---
+
 ## Milestone 4A: Consistent Error Shapes & MCP Error Codes
 
 Milestone 4A centralises all error formatting behind a single shared utility (`src/tools/errors.ts`), replacing eight divergent catch blocks with one consistent shape: structured `isError` responses that never re-throw, so no error can crash the MCP transport connection.

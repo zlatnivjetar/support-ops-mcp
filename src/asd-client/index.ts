@@ -34,10 +34,12 @@ export class AsdApiError extends Error {
 export class AsdClient {
   private baseUrl: string;
   private jwt: string;
+  private defaultTimeoutMs: number;
 
   constructor(config: Config) {
     this.baseUrl = config.asdApiUrl;
     this.jwt = config.asdJwt;
+    this.defaultTimeoutMs = config.requestTimeoutMs;
   }
 
   // ── Private helpers ──
@@ -46,6 +48,7 @@ export class AsdClient {
     method: string,
     path: string,
     body?: unknown,
+    timeoutMs?: number,
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
@@ -57,6 +60,7 @@ export class AsdClient {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(timeoutMs ?? this.defaultTimeoutMs),
     });
 
     if (!response.ok) {
@@ -122,11 +126,11 @@ export class AsdClient {
   // ── AI Pipeline endpoints ──
 
   async triageTicket(ticketId: string): Promise<TriageResult> {
-    return this.request('POST', `/tickets/${ticketId}/triage`);
+    return this.request('POST', `/tickets/${ticketId}/triage`, undefined, 55_000);
   }
 
   async generateDraft(ticketId: string): Promise<DraftResult> {
-    return this.request('POST', `/tickets/${ticketId}/draft`);
+    return this.request('POST', `/tickets/${ticketId}/draft`, undefined, 55_000);
   }
 
   // ── Knowledge endpoints ──

@@ -2,6 +2,23 @@
 
 ---
 
+## Milestone 4B — Fetch Timeout & Graceful Degradation
+
+**What changed:** Added `AbortSignal.timeout()` to `AsdClient.request()`. Added `requestTimeoutMs` to `Config` (sourced from `ASD_TIMEOUT_MS`, default 30s). AI pipeline endpoints (`triageTicket`, `generateDraft`) use a 55s override. Added `TimeoutError` and `AbortError` handling in `formatToolError`. Added `ASD_TIMEOUT_MS` to `.env.example`. Fixed a pre-existing test client crash: Test 4 was calling `JSON.parse` on an error string when Test 1 returned a 500 from the ASD API.
+
+**Key decisions:**
+- 30s default is below Railway's 60s gateway timeout, giving the client a clean error before the gateway kills the connection.
+- `triageTicket` and `generateDraft` use 55s — observed latency up to ~21s for `generate_draft`, so 55s gives headroom without exceeding the gateway limit.
+- `TimeoutError` (from `AbortSignal.timeout()`) is a `DOMException`, not a `TypeError` — handled separately from network errors in `formatToolError`.
+
+**Files touched:** `src/config.ts`, `src/asd-client/index.ts`, `src/tools/errors.ts`, `.env.example`, `tests/client-test.ts`
+
+**Gotchas:**
+- `AbortSignal.timeout()` throws `DOMException { name: 'TimeoutError' }`, not `AbortError`. The plan handles both names since older Node versions may differ.
+- Test 1 (`search_tickets` no filters) returns HTTP 500 from the ASD API — pre-existing issue, not introduced here. The test client's guard (`!firstTicketId`) didn't protect against `JSON.parse` being called on an error string; fixed with an `isError` check.
+
+---
+
 ## Milestone 4A — Consistent Error Shapes & MCP Error Codes
 
 **What changed:** Created `src/tools/errors.ts` with a shared `formatToolError` utility. Refactored all 8 tool catch blocks to use it. Removed all `throw err` fallthroughs — no tool handler can crash the MCP transport anymore.

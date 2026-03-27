@@ -60,8 +60,9 @@ async function main() {
 
   // Test 4: get_ticket — fetch full detail for the first ticket from Test 1
   console.log('=== Test 4: get_ticket (first ticket from Test 1) ===');
-  const ticketsData = JSON.parse((result1.content[0] as { text: string }).text);
-  const firstTicketId = ticketsData.tickets[0]?.id;
+  const result1Text = (result1.content[0] as { text: string }).text;
+  const ticketsData = result1.isError ? null : JSON.parse(result1Text);
+  const firstTicketId = ticketsData?.tickets[0]?.id;
   if (!firstTicketId) {
     console.log('No tickets returned from Test 1, skipping get_ticket test.');
   } else {

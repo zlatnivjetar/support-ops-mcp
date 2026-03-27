@@ -28,6 +28,10 @@ export function formatToolError(err: unknown, opts: ToolErrorOptions) {
         opts.statusMessages?.[err.status] ??
         `Error in ${opts.toolName}: ${err.detail} (HTTP ${err.status})`;
     }
+  } else if (err instanceof DOMException && err.name === 'TimeoutError') {
+    message = `${opts.toolName} timed out — the ASD backend took too long to respond. Try again.`;
+  } else if (err instanceof DOMException && err.name === 'AbortError') {
+    message = `${opts.toolName} request was aborted.`;
   } else if (isNetworkError(err)) {
     message =
       'ASD API is unreachable — the backend may be down or the URL may be misconfigured. Check ASD_API_URL and try again.';

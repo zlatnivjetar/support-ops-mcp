@@ -7,14 +7,16 @@
  *   ASD_JWT      — Bearer token for authenticating with the ASD API
  *
  * Optional:
- *   PORT         — HTTP port for Streamable HTTP transport (default: 3001)
- *   TRANSPORT    — "http" | "stdio" (default: "http")
+ *   PORT            — HTTP port for Streamable HTTP transport (default: 3001)
+ *   TRANSPORT       — "http" | "stdio" (default: "http")
+ *   ASD_TIMEOUT_MS  — Request timeout in milliseconds (default: 30000)
  */
 export interface Config {
   asdApiUrl: string;
   asdJwt: string;
   port: number;
   transport: 'http' | 'stdio';
+  requestTimeoutMs: number;
 }
 
 export function loadConfig(): Config {
@@ -29,5 +31,6 @@ export function loadConfig(): Config {
     asdJwt,
     port: parseInt(process.env.PORT || '3001', 10),
     transport: (process.env.TRANSPORT as 'http' | 'stdio') || 'http',
+    requestTimeoutMs: parseInt(process.env.ASD_TIMEOUT_MS || '30000', 10),
   };
 }
