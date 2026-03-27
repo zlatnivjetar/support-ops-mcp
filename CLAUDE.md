@@ -2,9 +2,9 @@
 
 ## Current Milestone
 
-**→ Milestone 4: Hardening**
+**→ Milestone 4A: Consistent Error Shapes & MCP Error Codes**
 
-Implementation plan: `docs/implementation-plan.md`
+Implementation plan: `docs/implementation-plan-part2.md`
 
 When instructed to "implement current milestone", read the matching sub-milestone from the plan file.
 
