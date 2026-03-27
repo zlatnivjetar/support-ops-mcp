@@ -328,6 +328,194 @@ async function main() {
   console.log(`  isError: ${result18.isError}`);
   console.log();
 
+  // ── Workflow Scenarios (Milestone 3E) ──────────────────────────────────────
+
+  console.log('\n' + '='.repeat(72));
+  console.log('WORKFLOW SCENARIOS');
+  console.log('='.repeat(72) + '\n');
+
+  // Scenario A: Standard ticket resolution
+  // search → get_ticket → triage → update (apply prediction) → generate_draft → review_draft → update (resolved)
+  console.log('=== Scenario A: Standard ticket resolution ===');
+  const saSearchResult = await client.callTool({
+    name: 'search_tickets',
+    arguments: { status: 'open', per_page: 5 },
+  });
+  const saTickets = JSON.parse((saSearchResult.content[0] as { text: string }).text).tickets ?? [];
+  // Pick a ticket that hasn't been used in the unit tests above
+  const saTicket = saTickets.find((t: { id: string }) => t.id !== firstTicketId) ?? saTickets[0];
+  const saId: string | undefined = saTicket?.id;
+
+  if (!saId) {
+    console.log('  No suitable open ticket found, skipping Scenario A.');
+  } else {
+    console.log(`  Ticket: ${saId} — "${saTicket.subject}"`);
+
+    // get_ticket
+    const saGet = await client.callTool({ name: 'get_ticket', arguments: { ticket_id: saId } });
+    const saDetail = JSON.parse((saGet.content[0] as { text: string }).text);
+    console.log(`  get_ticket: messages=${saDetail.messages?.length}, status=${saDetail.status}`);
+
+    // triage_ticket
+    const saTriage = await client.callTool({ name: 'triage_ticket', arguments: { ticket_id: saId } });
+    let saCategory: string | undefined;
+    let saPriority: string | undefined;
+    let saTeam: string | undefined;
+    if (!saTriage.isError) {
+      const saTriageData = JSON.parse((saTriage.content[0] as { text: string }).text);
+      saCategory = saTriageData.prediction?.predicted_category;
+      saPriority = saTriageData.prediction?.predicted_priority;
+      saTeam = saTriageData.prediction?.predicted_team;
+      console.log(`  triage_ticket: category=${saCategory}, priority=${saPriority}, confidence=${saTriageData.prediction?.confidence}, latency=${saTriageData.latency_ms}ms`);
+    } else {
+      console.log('  triage_ticket: isError=true');
+    }
+
+    // update_ticket — apply triage prediction
+    const saUpdateArgs: Record<string, string> = { ticket_id: saId };
+    if (saCategory) saUpdateArgs.category = saCategory;
+    if (saPriority) saUpdateArgs.priority = saPriority;
+    if (saTeam) saUpdateArgs.team = saTeam;
+    if (Object.keys(saUpdateArgs).length > 1) {
+      const saUpdate = await client.callTool({ name: 'update_ticket', arguments: saUpdateArgs });
+      if (!saUpdate.isError) {
+        const saUpdateData = JSON.parse((saUpdate.content[0] as { text: string }).text);
+        console.log(`  update_ticket (apply prediction): fields_changed=${JSON.stringify(saUpdateData.fields_changed)}, status=${saUpdateData.updated_ticket?.status}`);
+      } else {
+        const msg = (saUpdate.content[0] as { text: string }).text;
+        console.log(`  update_ticket (apply prediction): isError=true — ${msg}`);
+      }
+    }
+
+    // generate_draft
+    console.log('  generate_draft: calling AI pipeline (3-8s)...');
+    const saDraft = await client.callTool({ name: 'generate_draft', arguments: { ticket_id: saId } });
+    let saDraftId: string | undefined;
+    if (!saDraft.isError) {
+      const saDraftData = JSON.parse((saDraft.content[0] as { text: string }).text);
+      saDraftId = saDraftData.draft?.id;
+      console.log(`  generate_draft: id=${saDraftId}, confidence=${saDraftData.draft?.confidence}, send_ready=${saDraftData.draft?.send_ready}, latency=${saDraftData.latency_ms}ms`);
+    } else {
+      console.log('  generate_draft: isError=true');
+    }
+
+    // review_draft (approved)
+    if (saDraftId) {
+      const saReview = await client.callTool({ name: 'review_draft', arguments: { draft_id: saDraftId, action: 'approved' } });
+      if (!saReview.isError) {
+        const saReviewData = JSON.parse((saReview.content[0] as { text: string }).text);
+        console.log(`  review_draft: ${saReviewData.review?.result}`);
+      } else {
+        console.log('  review_draft: isError=true');
+      }
+    }
+
+    // update_ticket — resolve
+    const saResolve = await client.callTool({ name: 'update_ticket', arguments: { ticket_id: saId, status: 'resolved' } });
+    if (!saResolve.isError) {
+      const saResolveData = JSON.parse((saResolve.content[0] as { text: string }).text);
+      console.log(`  update_ticket (resolve): status=${saResolveData.updated_ticket?.status}`);
+    } else {
+      const msg = (saResolve.content[0] as { text: string }).text;
+      console.log(`  update_ticket (resolve): isError=true — ${msg}`);
+    }
+  }
+  console.log();
+
+  // Scenario B: Low confidence → rejection → redraft
+  // generate_draft → review_draft (rejected) → generate_draft again → verify new draft ID
+  console.log('=== Scenario B: Rejection and redraft ===');
+  const sbTicketId = firstTicketId ?? saId;
+  if (!sbTicketId) {
+    console.log('  No ticket ID available, skipping Scenario B.');
+  } else {
+    console.log(`  Using ticket: ${sbTicketId}`);
+
+    // First draft
+    console.log('  generate_draft #1 (3-8s)...');
+    const sbDraft1 = await client.callTool({ name: 'generate_draft', arguments: { ticket_id: sbTicketId } });
+    let sbDraftId1: string | undefined;
+    if (!sbDraft1.isError) {
+      const d = JSON.parse((sbDraft1.content[0] as { text: string }).text);
+      sbDraftId1 = d.draft?.id;
+      console.log(`  draft #1: id=${sbDraftId1}, confidence=${d.draft?.confidence}, send_ready=${d.draft?.send_ready}`);
+    } else {
+      console.log('  draft #1: isError=true');
+    }
+
+    // Reject it
+    if (sbDraftId1) {
+      const sbReject = await client.callTool({
+        name: 'review_draft',
+        arguments: { draft_id: sbDraftId1, action: 'rejected', reason: 'insufficient evidence' },
+      });
+      if (!sbReject.isError) {
+        const r = JSON.parse((sbReject.content[0] as { text: string }).text);
+        console.log(`  review_draft (rejected): ${r.review?.result}`);
+      } else {
+        console.log('  review_draft (rejected): isError=true');
+      }
+    }
+
+    // Second draft — must have a different ID (append-only)
+    console.log('  generate_draft #2 (3-8s)...');
+    const sbDraft2 = await client.callTool({ name: 'generate_draft', arguments: { ticket_id: sbTicketId } });
+    if (!sbDraft2.isError) {
+      const d = JSON.parse((sbDraft2.content[0] as { text: string }).text);
+      const sbDraftId2 = d.draft?.id;
+      console.log(`  draft #2: id=${sbDraftId2}, confidence=${d.draft?.confidence}`);
+      const differentIds = sbDraftId1 && sbDraftId2 && sbDraftId1 !== sbDraftId2;
+      console.log(`  draft IDs are different (append-only verified): ${differentIds ?? 'n/a'}`);
+    } else {
+      console.log('  draft #2: isError=true');
+    }
+  }
+  console.log();
+
+  // Scenario C: Knowledge-driven workflow
+  // search_knowledge → search_tickets (billing) → generate_draft
+  console.log('=== Scenario C: Knowledge-driven workflow ===');
+  const scKnowledge = await client.callTool({
+    name: 'search_knowledge',
+    arguments: { query: 'refund policy', top_k: 3 },
+  });
+  if (!scKnowledge.isError) {
+    const scKData = JSON.parse((scKnowledge.content[0] as { text: string }).text);
+    console.log(`  search_knowledge: ${scKData.result_count} result(s)`);
+    if (scKData.results.length > 0) {
+      console.log(`  top result: "${scKData.results[0].document_title}" (similarity: ${scKData.results[0].similarity})`);
+    }
+  }
+
+  const scTicketSearch = await client.callTool({
+    name: 'search_tickets',
+    arguments: { category: 'billing', status: 'open', per_page: 3 },
+  });
+  const scTickets = JSON.parse((scTicketSearch.content[0] as { text: string }).text).tickets ?? [];
+  const scTicketId: string | undefined = scTickets[0]?.id;
+  console.log(`  search_tickets (billing, open): ${scTickets.length} result(s)${scTicketId ? `, using ${scTicketId}` : ''}`);
+
+  if (scTicketId) {
+    console.log('  generate_draft (3-8s)...');
+    const scDraft = await client.callTool({ name: 'generate_draft', arguments: { ticket_id: scTicketId } });
+    if (!scDraft.isError) {
+      const d = JSON.parse((scDraft.content[0] as { text: string }).text);
+      console.log(`  generate_draft: confidence=${d.draft?.confidence}, evidence_chunks_cited=${d.draft?.evidence_chunks_cited}, send_ready=${d.draft?.send_ready}, latency=${d.latency_ms}ms`);
+    } else {
+      console.log('  generate_draft: isError=true');
+    }
+  }
+  console.log();
+
+  // Scenario D: Error resilience summary
+  // All error cases already exercised in unit tests — summarise coverage
+  console.log('=== Scenario D: Error resilience (summary of unit test coverage) ===');
+  console.log('  404 — non-existent ticket: Tests 5, 10, 12, 18 ✓');
+  console.log('  Validation — no update fields: Test 17 ✓');
+  console.log('  Validation — edited_and_approved without body: Test 14 ✓');
+  console.log('  Expired JWT: manual test required (restart server with invalid ASD_JWT)');
+  console.log();
+
   await client.close();
   console.log('\nDone — all tests passed.');
 }

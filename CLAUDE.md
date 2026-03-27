@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 3E: Full Workflow Verification**
+**→ Milestone 4: Hardening**
 
 Implementation plan: `docs/implementation-plan.md`
 

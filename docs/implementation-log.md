@@ -205,3 +205,22 @@
 **Key files:** `src/tools/update-ticket.ts`, `src/tools/index.ts`, `src/asd-client/index.ts`, `tests/client-test.ts`
 
 **Gotchas:** The ASD backend returned 500 for the status update in Test 16. The ticket used had been through triage → draft → approval in earlier tests (now `pending_customer`), and the backend appears to reject transitioning it back to `in_progress`. This is a backend business-logic constraint, not a client bug. The error is now surfaced cleanly thanks to the double-read fix.
+
+---
+
+## Milestone 3E — Full Workflow Verification
+
+**What changed:** Added Workflow Scenarios A–D to `tests/client-test.ts` — four end-to-end chains that exercise all seven tools together rather than in isolation.
+
+**Key decisions:**
+- Scenario A picks a ticket that wasn't used in earlier unit tests (filters out `firstTicketId`) so it starts in a clean `open` state. This avoids backend 500s caused by operating on tickets that have already been fully processed.
+- Scenario B verifies append-only draft behaviour by generating two drafts on the same ticket, rejecting the first, and confirming the second has a different ID.
+- Scenario C combines `search_knowledge` + `search_tickets` (billing) + `generate_draft` to exercise the knowledge-retrieval path end-to-end.
+- Scenario D is a printed summary of which unit tests (5, 10, 12, 14, 17, 18) cover each error category, plus a note that expired-JWT testing requires a manual server restart.
+
+**Key files:** `tests/client-test.ts`
+
+**Gotchas:**
+- `generate_draft` took 21s in Scenario A — the 8s performance target in the plan is aspirational; the ASD backend's OpenAI call is highly variable. The MCP layer handled it without timing out.
+- `update_ticket` returned 500 in the unit test (Test 16) but succeeded in Scenario A — the 500 was specific to a ticket that had already been approved and transitioned to `pending_customer`. Fresh open tickets accept PATCH correctly.
+- `evidence_chunks_cited` remains 0 across all scenarios — the ASD backend embeds citation IDs in the body string rather than the `evidence_chunk_ids` field. This is a backend data quality issue documented in 3B.

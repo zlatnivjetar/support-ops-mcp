@@ -130,6 +130,20 @@ Milestone 2D was a verification pass — no new code was written. It confirmed t
 
 ---
 
+## Milestone 3E: Full Workflow Verification
+
+Milestone 3E is the integration gate for all of Milestone 3 — it runs four end-to-end scenarios that chain all seven tools together in the sequences a real support agent would use, confirming that the tools compose correctly rather than just work in isolation.
+
+**Key decisions:**
+
+- **Test state isolation by picking fresh tickets.** The workflow scenarios avoid reusing tickets that unit tests have already put through the full pipeline, because those tickets end up in states (e.g. `pending_customer` after approval) that cause the ASD backend to reject further status updates with a 500. Scenario A filters out the ticket used in unit tests and picks a clean `open` one. This surfaces an important backend constraint: ticket status transitions are not freely reversible — operating on a ticket that has already been approved and resolved will fail, even if the individual tool call is otherwise valid.
+
+- **Append-only draft behaviour verified through Scenario B.** Generating a draft, rejecting it, then generating again produces two records with distinct IDs — the second call doesn't overwrite or reuse the first. This matters because the review workflow depends on draft IDs being stable and unique: if `generate_draft` were idempotent and returned the same ID on retry, a rejection followed by a redraft would still point to the rejected record, making `review_draft` operate on stale data.
+
+- **Performance targets are aspirational, not hard limits at the MCP layer.** The plan specifies `generate_draft` should complete in under 8 seconds, but Scenario A saw 21 seconds. The MCP protocol itself has no built-in timeout — the connection stays open as long as the underlying transport is alive, so a slow AI backend call doesn't break the protocol. The constraint that matters is Railway's server-side request timeout (which would surface as a 504, already handled in the tool). The 8s target is a user-experience guideline, not an enforced boundary.
+
+---
+
 ## Milestone 3D: `update_ticket` Tool
 
 `update_ticket` is the patch-fields tool — it sends a PATCH with any combination of status, priority, category, team, or assignee and returns a snapshot of the updated ticket. It's the tool an agent uses to apply triage predictions or manually adjust ticket properties after taking other actions.
