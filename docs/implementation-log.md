@@ -175,3 +175,18 @@
 **Key files:** `src/tools/generate-draft.ts`, `src/tools/index.ts`, `tests/client-test.ts`
 
 **Gotchas:** Server must be restarted after adding a new tool — `tsx` auto-reloads source files but a running server won't pick up new tool registrations until it restarts. First test run returned "Tool generate_draft not found" for this reason.
+
+---
+
+## Milestone 3C — `review_draft` Tool
+
+**What changed:** Implemented `src/tools/review-draft.ts` with the `review_draft` MCP tool. Registered it in `src/tools/index.ts`. Added Tests 13, 14, and 15 to `tests/client-test.ts`. Added `queueDraftId` extraction from Test 8's result to make the draft ID available across review tests.
+
+**Key decisions:**
+- Client-side validation for `edited_and_approved` without `edited_body` runs before any API call. This gives a clear, specific error message rather than relying on the ASD API to catch it with a potentially opaque 400 response.
+- Action-specific result messages are defined in a `RESULT_MESSAGES` lookup map rather than a switch statement — readable and easy to extend if new actions are added.
+- 409 Conflict is handled explicitly for the already-reviewed case, though the ASD API turned out to be idempotent (Test 15 returned success on a second approve rather than 409). The handler is correct defensively and won't cause issues.
+
+**Key files:** `src/tools/review-draft.ts`, `src/tools/index.ts`, `tests/client-test.ts`
+
+**Gotchas:** The ASD API does not enforce review uniqueness — submitting the same approval twice returns success rather than a conflict error. The 409 handler is correct but won't fire against the current backend.

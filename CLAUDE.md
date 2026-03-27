@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 3C: `review_draft` Tool**
+**→ Milestone 3D: `update_ticket` Tool**
 
 Implementation plan: `docs/implementation-plan.md`
 

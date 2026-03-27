@@ -136,6 +136,13 @@ async function main() {
     }
   }
 
+  // Extract a draft ID from the review queue for later use in review_draft tests
+  let queueDraftId: string | undefined;
+  if (!result8.isError) {
+    const queueData = JSON.parse((result8.content[0] as { text: string }).text);
+    queueDraftId = queueData.pending_drafts?.[0]?.draft_id;
+  }
+
   // Test 9: triage_ticket — run AI classification on the first ticket from Test 1
   console.log('=== Test 9: triage_ticket (first ticket from Test 1) ===');
   if (!firstTicketId) {
@@ -219,6 +226,55 @@ async function main() {
   });
   console.log('Result:', JSON.stringify(result12.content, null, 2));
   console.log(`  isError: ${result12.isError}`);
+  console.log();
+
+  // Test 13: review_draft — approve a draft from the review queue
+  console.log('=== Test 13: review_draft (approve first queue item) ===');
+  if (!queueDraftId) {
+    console.log('No pending drafts in review queue, skipping review_draft approve test.');
+  } else {
+    console.log(`Approving draft ID: ${queueDraftId}`);
+    const result13 = await client.callTool({
+      name: 'review_draft',
+      arguments: { draft_id: queueDraftId, action: 'approved' },
+    });
+    console.log('Result:', JSON.stringify(result13.content, null, 2));
+    if (result13.isError) {
+      console.log(`  isError: true`);
+    } else {
+      const reviewData = JSON.parse((result13.content[0] as { text: string }).text);
+      console.log(`  review.draft_id: ${reviewData.review?.draft_id}`);
+      console.log(`  review.action: ${reviewData.review?.action}`);
+      console.log(`  review.result: ${reviewData.review?.result}`);
+    }
+  }
+  console.log();
+
+  // Test 14: review_draft — edited_and_approved without edited_body (client-side validation error)
+  console.log('=== Test 14: review_draft (edited_and_approved without edited_body) ===');
+  const result14 = await client.callTool({
+    name: 'review_draft',
+    arguments: {
+      draft_id: '00000000-0000-0000-0000-000000000000',
+      action: 'edited_and_approved',
+    },
+  });
+  console.log('Result:', JSON.stringify(result14.content, null, 2));
+  console.log(`  isError: ${result14.isError}`);
+  console.log();
+
+  // Test 15: review_draft — reviewing an already-reviewed draft (409 or 404 from ASD API)
+  console.log('=== Test 15: review_draft (already-reviewed draft) ===');
+  if (!queueDraftId) {
+    console.log('No draft ID available, skipping already-reviewed test.');
+  } else {
+    const result15 = await client.callTool({
+      name: 'review_draft',
+      arguments: { draft_id: queueDraftId, action: 'approved' },
+    });
+    console.log('Result:', JSON.stringify(result15.content, null, 2));
+    console.log(`  isError: ${result15.isError}`);
+  }
   console.log();
 
   await client.close();

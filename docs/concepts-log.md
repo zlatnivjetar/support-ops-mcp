@@ -130,6 +130,20 @@ Milestone 2D was a verification pass — no new code was written. It confirmed t
 
 ---
 
+## Milestone 3C: `review_draft` Tool
+
+`review_draft` is the human-in-the-loop gate — it submits an approval decision (approve, edit-and-approve, reject, or escalate) on a pending AI draft, closing the loop between AI generation and actual customer reply. It's the only tool whose output directly changes what gets sent to a customer.
+
+**Key decisions:**
+
+- **Client-side validation before the API call.** The `edited_and_approved` action requires an `edited_body` — if that field is missing, the tool returns a structured error immediately without making a network request. Relying on the API to catch this would produce a generic 400 with an opaque message; catching it in the handler lets you return a precise, actionable error ("edited_body is required when action is edited_and_approved") at zero cost. This pattern is worth applying to any tool where a missing combination of optional fields makes a request semantically invalid.
+
+- **Action-specific result messages over a single generic confirmation.** Each of the four actions produces a different outcome in the ASD backend — approved drafts update the ticket status, rejections leave it open, escalations flag it for a different queue. Rather than returning the raw API response (which doesn't describe what happened in plain terms), the tool maps each action to a human-readable result string. This gives the LLM enough context to decide what to do next without reading the ASD documentation.
+
+- **Defensive 409 handling for idempotent backends.** The tool includes a specific handler for HTTP 409 Conflict, which would fire if the API enforced that a draft can only be reviewed once. In practice, the ASD backend accepted a second approval on the same draft without error — it treats review submissions as idempotent rather than enforcing uniqueness. The 409 handler is correct and harmless, but it won't trigger against the current backend; if the API ever tightens this constraint, the error message is already in place.
+
+---
+
 ## Milestone 3B: `generate_draft` Tool
 
 `generate_draft` triggers the RAG-grounded draft generation pipeline — the ASD backend retrieves relevant knowledge base chunks, then uses them as evidence to write a reply — and is the most computationally expensive tool in the server, sitting between triage (classification) and review (human approval) in the support workflow.
