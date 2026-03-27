@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 5B: Codex Integration**
+**→ Milestone 5C: Integration Verification**
 
 Implementation plan: `docs/implementation-plan-part2.md`
 

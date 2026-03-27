@@ -2,6 +2,23 @@
 
 ---
 
+## Milestone 5B — Codex Integration
+
+**What changed:** Created `.codex/config.toml.example` — a committed TOML config template for OpenAI Codex CLI users. Updated `.gitignore` to ignore `.codex/config.toml` (the real file users populate with their JWT).
+
+**Key decisions:**
+- Codex CLI uses TOML format at `.codex/config.toml` with `[mcp_servers.<name>]` sections — different from Claude Code's JSON format but the same conceptual pattern (stdio command + args + env block).
+- `ASD_JWT` left as `"YOUR_JWT_HERE"` placeholder in the example — never committed with a real token.
+- `startup_timeout_sec = 30` and `tool_timeout_sec = 60` set explicitly to match Codex CLI defaults and give headroom for AI pipeline tools.
+- Ignored `.codex/config.toml` specifically (not the whole `.codex/` dir) using the same pattern as the Claude Code gitignore — so the committed `.example` file stays tracked.
+- Codex CLI MCP verification deferred — CLI not installed in this environment. Config is documented and ready.
+
+**Files touched:** `.codex/config.toml.example` (new), `.gitignore`
+
+**Gotchas:** Codex CLI's TOML env syntax uses `{ KEY = "value" }` inline tables — distinct from TOML's standard table syntax. The env block must be an inline table on a single line.
+
+---
+
 ## Milestone 5A — Claude Code Integration
 
 **What changed:** Created `.claude/mcp.json.example` — a committed stdio config template for Claude Code users. Created `.claude/mcp.json` (gitignored) — the local config users fill in with their JWT. Updated `.gitignore` to ignore `.claude/mcp.json` specifically (not the whole `.claude/` dir, since gitignore can't un-ignore files inside an ignored directory).

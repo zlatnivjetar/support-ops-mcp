@@ -1,0 +1,6 @@
+[mcp_servers.support-ops]
+command = "npx"
+args = ["tsx", "src/index.ts"]
+env = { ASD_API_URL = "https://agent-service-desk-production.up.railway.app", ASD_JWT = "YOUR_JWT_HERE", TRANSPORT = "stdio" }
+startup_timeout_sec = 30
+tool_timeout_sec = 60

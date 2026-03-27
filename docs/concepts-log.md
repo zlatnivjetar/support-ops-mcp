@@ -2,6 +2,20 @@
 
 ---
 
+## Milestone 5B: Codex Integration
+
+Milestone 5B adds an MCP server config template for OpenAI's Codex CLI, giving Codex users the same "clone, fill in JWT, start calling tools" path that Claude Code users got in 5A.
+
+**Key decisions:**
+
+- **TOML format, not JSON.** Codex CLI uses `.codex/config.toml` with `[mcp_servers.<name>]` sections — a different syntax from Claude Code's JSON, but the same conceptual structure (command, args, env). The env block must be an inline TOML table on a single line (`{ KEY = "value" }`), not a standard TOML subtable, because Codex parses it as a flat key-value map rather than a nested section.
+
+- **Gitignore the specific file, not the directory.** The same principle from 5A applies: committing `.codex/config.toml.example` while ignoring `.codex/config.toml` requires ignoring the exact file path, not the parent directory — git silently ignores negation patterns inside an ignored directory, so `!.codex/config.toml.example` would not work.
+
+- **Verification deferred when the CLI isn't available.** The plan explicitly anticipates that Codex CLI MCP support may be in preview or uninstalled, and calls for documenting the config and marking verification as deferred rather than blocking the milestone. The config is structurally identical to a verified Claude Code setup, so the risk of it being wrong is low — and the deferred note is the honest outcome rather than a gap.
+
+---
+
 ## Milestone 5A: Claude Code Integration
 
 Milestone 5A wires the MCP server into Claude Code as a per-project stdio tool, giving any developer who clones the repo a path from "I have a JWT" to "I can call support ops tools from my AI assistant" in a few steps.
