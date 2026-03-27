@@ -28,7 +28,7 @@
     "support-operations",
     "ai-tools"
   ],
-  "author": "David Grljusic",
+  "author": "David Marinovic",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "latest",

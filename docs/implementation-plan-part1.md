@@ -133,7 +133,7 @@ Each sub-milestone below is a self-contained work order. When you're ready to im
 >     "typecheck": "tsc --noEmit"
 >   },
 >   "keywords": ["mcp", "model-context-protocol", "support-operations", "ai-tools"],
->   "author": "David Grljusic",
+>   "author": "David Marinovic",
 >   "license": "MIT"
 > }
 > ```
