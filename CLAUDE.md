@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 3B: `generate_draft` Tool**
+**→ Milestone 3C: `review_draft` Tool**
 
 Implementation plan: `docs/implementation-plan.md`
 

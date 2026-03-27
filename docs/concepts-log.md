@@ -130,6 +130,20 @@ Milestone 2D was a verification pass — no new code was written. It confirmed t
 
 ---
 
+## Milestone 3B: `generate_draft` Tool
+
+`generate_draft` triggers the RAG-grounded draft generation pipeline — the ASD backend retrieves relevant knowledge base chunks, then uses them as evidence to write a reply — and is the most computationally expensive tool in the server, sitting between triage (classification) and review (human approval) in the support workflow.
+
+**Key decisions:**
+
+- **`next_steps` as explicit workflow guidance.** The response includes a `next_steps` field telling the LLM to use `review_draft` next. Without it, the LLM has no signal that draft generation is a non-terminal action — it might surface the draft to the user as if it were already sent, or stall waiting for further instructions. This is the same pattern as `triage_ticket`'s `note` field: both tools create records that require a subsequent action to take effect, so both responses name that action explicitly.
+
+- **Field renaming at the serialisation boundary.** The API returns `approval_outcome`; the tool exposes it as `approval_status`. The rename happens only in the JSON the tool returns — the underlying `DraftResult` type and client method are untouched. This matters because the LLM reads field names as semantic labels: "approval_outcome" implies a past event, while "approval_status" implies a current state to act on. Renaming at the boundary keeps the API contract stable while making the LLM-facing vocabulary match the tool's description.
+
+- **`evidence_chunks_cited` as a count, not a list.** The raw API response includes `evidence_chunk_ids` — an array of UUIDs referencing the knowledge chunks the AI cited. The tool exposes only the count. Chunk IDs are internal identifiers the LLM can't dereference without a separate lookup; a count gives the LLM a useful signal (did the AI have supporting material?) without cluttering the response with opaque strings. The current ASD backend packs citation data into the body string rather than the `evidence_chunk_ids` array, so the count reads as 0 — a backend data quality issue, not a client bug.
+
+---
+
 ## Milestone 3A: `triage_ticket` Tool
 
 `triage_ticket` is the first action tool — it fires the ASD AI classification pipeline on a specific ticket and returns a prediction record containing category, priority, team, escalation recommendation, and confidence score. It marks the transition from read-only tools to tools that create persistent state in the backend.

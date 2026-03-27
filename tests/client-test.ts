@@ -182,6 +182,45 @@ async function main() {
   console.log(`  isError: ${result10.isError}`);
   console.log();
 
+  // Test 11: generate_draft — triage first, then generate a draft for the same ticket
+  console.log('=== Test 11: generate_draft (first ticket from Test 1) ===');
+  if (!firstTicketId) {
+    console.log('No tickets returned from Test 1, skipping generate_draft test.');
+  } else {
+    console.log(`Generating draft for ticket ID: ${firstTicketId}`);
+    console.log('  (This calls the AI pipeline — may take 3-8 seconds)');
+    const result11 = await client.callTool({
+      name: 'generate_draft',
+      arguments: { ticket_id: firstTicketId },
+    });
+    console.log('Result:', JSON.stringify(result11.content, null, 2));
+    if (result11.isError) {
+      console.log(`  isError: true`);
+    } else {
+      const draftData = JSON.parse((result11.content[0] as { text: string }).text);
+      console.log(`  draft.id: ${draftData.draft?.id}`);
+      console.log(`  draft.body length: ${draftData.draft?.body?.length ?? 0}`);
+      console.log(`  draft.confidence: ${draftData.draft?.confidence}`);
+      console.log(`  draft.send_ready: ${draftData.draft?.send_ready}`);
+      console.log(`  draft.evidence_chunks_cited: ${draftData.draft?.evidence_chunks_cited}`);
+      console.log(`  draft.unresolved_questions: ${JSON.stringify(draftData.draft?.unresolved_questions)}`);
+      console.log(`  draft.approval_status: ${draftData.draft?.approval_status}`);
+      console.log(`  latency_ms: ${draftData.latency_ms}`);
+      console.log(`  next_steps: ${draftData.next_steps}`);
+    }
+  }
+  console.log();
+
+  // Test 12: generate_draft with non-existent UUID — should return clean 404 error
+  console.log('=== Test 12: generate_draft (non-existent UUID) ===');
+  const result12 = await client.callTool({
+    name: 'generate_draft',
+    arguments: { ticket_id: '00000000-0000-0000-0000-000000000000' },
+  });
+  console.log('Result:', JSON.stringify(result12.content, null, 2));
+  console.log(`  isError: ${result12.isError}`);
+  console.log();
+
   await client.close();
   console.log('\nDone — all tests passed.');
 }

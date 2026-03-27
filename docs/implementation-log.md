@@ -160,3 +160,18 @@
 **Key files:** `src/tools/triage-ticket.ts`, `src/tools/index.ts`, `tests/client-test.ts`
 
 **Gotchas:** None.
+
+---
+
+## Milestone 3B — `generate_draft` Tool
+
+**What changed:** Implemented `src/tools/generate-draft.ts` with the `generate_draft` MCP tool. Registered it in `src/tools/index.ts`. Added Tests 11 and 12 to `tests/client-test.ts`.
+
+**Key decisions:**
+- `approval_status` in the output is mapped from `approval_outcome` in the `DraftResult` type — the plan spec used the friendlier name; the API field is `approval_outcome`. Renamed at the serialisation boundary so the LLM-facing name matches the tool descriptions.
+- `evidence_chunks_cited` is a count derived from `result.evidence_chunk_ids.length`, consistent with the plan spec and the `get_ticket` tool. The ASD backend appears to embed citation IDs inside the body string rather than populating `evidence_chunk_ids` — count returns 0 as a result, but this is a backend data quality issue, not a client bug.
+- `next_steps` field explicitly directs the LLM to `review_draft` — same pattern as `triage_ticket`'s `note` field, preventing the LLM from treating draft generation as a terminal action.
+
+**Key files:** `src/tools/generate-draft.ts`, `src/tools/index.ts`, `tests/client-test.ts`
+
+**Gotchas:** Server must be restarted after adding a new tool — `tsx` auto-reloads source files but a running server won't pick up new tool registrations until it restarts. First test run returned "Tool generate_draft not found" for this reason.
