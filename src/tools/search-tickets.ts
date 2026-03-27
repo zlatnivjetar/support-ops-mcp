@@ -13,7 +13,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AsdClient } from '../asd-client/index.js';
-import { AsdApiError } from '../asd-client/index.js';
+import { formatToolError } from './errors.js';
 
 export function registerSearchTickets(server: McpServer, client: AsdClient) {
   server.registerTool(
@@ -111,18 +111,7 @@ export function registerSearchTickets(server: McpServer, client: AsdClient) {
           ],
         };
       } catch (err) {
-        if (err instanceof AsdApiError) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Error searching tickets: ${err.detail} (HTTP ${err.status})`,
-              },
-            ],
-            isError: true,
-          };
-        }
-        throw err; // unexpected errors bubble up
+        return formatToolError(err, { toolName: 'search_tickets' });
       }
     },
   );

@@ -12,7 +12,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AsdClient } from '../asd-client/index.js';
-import { AsdApiError } from '../asd-client/index.js';
+import { formatToolError } from './errors.js';
 
 export function registerTriageTicket(server: McpServer, client: AsdClient) {
   server.registerTool(
@@ -57,23 +57,14 @@ export function registerTriageTicket(server: McpServer, client: AsdClient) {
           ],
         };
       } catch (err) {
-        if (err instanceof AsdApiError) {
-          let message: string;
-          if (err.status === 404) {
-            message = `Ticket not found: ${args.ticket_id}`;
-          } else if (err.status === 403) {
-            message = 'Triage requires agent or lead role';
-          } else if (err.status === 504) {
-            message = 'Triage timed out — the AI backend may be under load. Try again.';
-          } else {
-            message = `Error triaging ticket: ${err.detail} (HTTP ${err.status})`;
-          }
-          return {
-            content: [{ type: 'text' as const, text: message }],
-            isError: true,
-          };
-        }
-        throw err;
+        return formatToolError(err, {
+          toolName: 'triage_ticket',
+          statusMessages: {
+            404: `Ticket not found: ${args.ticket_id}`,
+            403: 'Triage requires agent or lead role',
+            504: 'Triage timed out — the AI backend may be under load. Try again.',
+          },
+        });
       }
     },
   );

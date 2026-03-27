@@ -2,6 +2,20 @@
 
 ---
 
+## Milestone 4A: Consistent Error Shapes & MCP Error Codes
+
+Milestone 4A centralises all error formatting behind a single shared utility (`src/tools/errors.ts`), replacing eight divergent catch blocks with one consistent shape: structured `isError` responses that never re-throw, so no error can crash the MCP transport connection.
+
+**Key decisions:**
+
+- **Shared formatter over per-tool error logic.** Each tool previously duplicated its own `instanceof AsdApiError` check and `throw err` fallthrough. Centralising into `formatToolError` means error behaviour is consistent by construction — adding a new tool automatically gets network-error handling and 401 detection without any extra work. Per-tool `statusMessages` still allow customisation (404 messages with the specific ID, 504 messages specific to AI endpoints) while keeping the catch block a one-liner.
+
+- **401 handled globally, not per tool.** An expired or invalid JWT will cause every single tool to fail, so the "check ASD_JWT environment variable" message lives in `formatToolError` before the `statusMessages` lookup, not in any individual tool. If it were in `statusMessages`, it would have to be repeated in eight places and could easily be omitted from a new tool — making the failure mode silent rather than actionable.
+
+- **Network errors distinguished from HTTP errors.** A `TypeError` with "fetch failed" or "ECONNREFUSED" means the ASD backend wasn't reached at all — the response the `AsdApiError` path assumes never arrived. Treating it the same as an HTTP error would be misleading ("Error in search_tickets: ..."). The separate "ASD API is unreachable" message tells the operator immediately whether to look at the backend URL or at the API response, which are very different debugging paths. This check must come after the `AsdApiError` branch, because `AsdApiError` is only thrown after a response arrives.
+
+---
+
 ## Milestone 3E: Full Workflow Verification
 
 Milestone 3E is the integration gate for all of Milestone 3 — it runs four end-to-end scenarios that chain all seven tools together in the sequences a real support agent would use, confirming that the tools compose correctly rather than just work in isolation.

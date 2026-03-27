@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 4A: Consistent Error Shapes & MCP Error Codes**
+**→ Milestone 4B: Fetch Timeout & Graceful Degradation**
 
 Implementation plan: `docs/implementation-plan-part2.md`
 

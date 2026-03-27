@@ -12,7 +12,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AsdClient } from '../asd-client/index.js';
-import { AsdApiError } from '../asd-client/index.js';
+import { formatToolError } from './errors.js';
 
 export function registerGetTicket(server: McpServer, client: AsdClient) {
   server.registerTool(
@@ -82,17 +82,12 @@ export function registerGetTicket(server: McpServer, client: AsdClient) {
           ],
         };
       } catch (err) {
-        if (err instanceof AsdApiError) {
-          const message =
-            err.status === 404
-              ? `Ticket not found: ${args.ticket_id}`
-              : `Error fetching ticket: ${err.detail} (HTTP ${err.status})`;
-          return {
-            content: [{ type: 'text' as const, text: message }],
-            isError: true,
-          };
-        }
-        throw err;
+        return formatToolError(err, {
+          toolName: 'get_ticket',
+          statusMessages: {
+            404: `Ticket not found: ${args.ticket_id}`,
+          },
+        });
       }
     },
   );

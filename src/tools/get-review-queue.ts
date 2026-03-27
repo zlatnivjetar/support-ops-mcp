@@ -12,7 +12,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AsdClient } from '../asd-client/index.js';
-import { AsdApiError } from '../asd-client/index.js';
+import { formatToolError } from './errors.js';
 
 export function registerGetReviewQueue(server: McpServer, client: AsdClient) {
   server.registerTool(
@@ -66,18 +66,7 @@ export function registerGetReviewQueue(server: McpServer, client: AsdClient) {
           ],
         };
       } catch (err) {
-        if (err instanceof AsdApiError) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Error fetching review queue: ${err.detail} (HTTP ${err.status})`,
-              },
-            ],
-            isError: true,
-          };
-        }
-        throw err;
+        return formatToolError(err, { toolName: 'get_review_queue' });
       }
     },
   );

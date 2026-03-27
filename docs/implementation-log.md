@@ -2,6 +2,23 @@
 
 ---
 
+## Milestone 4A — Consistent Error Shapes & MCP Error Codes
+
+**What changed:** Created `src/tools/errors.ts` with a shared `formatToolError` utility. Refactored all 8 tool catch blocks to use it. Removed all `throw err` fallthroughs — no tool handler can crash the MCP transport anymore.
+
+**Key decisions:**
+- 401 handling is global inside `formatToolError` rather than per-tool `statusMessages` — expired JWT is a cross-cutting concern that every tool surfaces the same way.
+- Network errors (`TypeError` with "fetch failed" / "ECONNREFUSED") get a distinct "ASD API is unreachable" message, separate from HTTP-level errors, so operators know immediately whether the problem is connectivity vs. a bad response.
+- Unexpected errors (anything that's not `AsdApiError` or a network error) return "Internal error in {tool}: {message}" instead of crashing — keeps the MCP connection alive for subsequent calls.
+- All `AsdApiError` imports were removed from tool files; tools only import `formatToolError`. This enforces the boundary: tools never inspect error internals directly.
+
+**Key files:** `src/tools/errors.ts` (new), all 8 files in `src/tools/`
+
+**Gotchas:**
+- Tests failed initially because port 3001 was held by a leftover process from a previous dev session. `taskkill /PID` freed it; tests passed 18/18 unit + 4 workflow scenarios.
+
+---
+
 ## Milestone 3E — Full Workflow Verification
 
 **What changed:** Added Workflow Scenarios A–D to `tests/client-test.ts` — four end-to-end chains that exercise all seven tools together rather than in isolation.

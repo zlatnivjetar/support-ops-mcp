@@ -11,7 +11,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AsdClient } from '../asd-client/index.js';
-import { AsdApiError } from '../asd-client/index.js';
+import { formatToolError } from './errors.js';
 
 const RESULT_MESSAGES: Record<string, string> = {
   approved: 'Draft approved and ticket status updated to pending_customer.',
@@ -84,23 +84,14 @@ export function registerReviewDraft(server: McpServer, client: AsdClient) {
           ],
         };
       } catch (err) {
-        if (err instanceof AsdApiError) {
-          let message: string;
-          if (err.status === 404) {
-            message = `Draft not found: ${args.draft_id}`;
-          } else if (err.status === 403) {
-            message = 'Reviewing drafts requires agent or lead role';
-          } else if (err.status === 409) {
-            message = `Draft has already been reviewed: ${args.draft_id}`;
-          } else {
-            message = `Error reviewing draft: ${err.detail} (HTTP ${err.status})`;
-          }
-          return {
-            content: [{ type: 'text' as const, text: message }],
-            isError: true,
-          };
-        }
-        throw err;
+        return formatToolError(err, {
+          toolName: 'review_draft',
+          statusMessages: {
+            404: `Draft not found: ${args.draft_id}`,
+            403: 'Reviewing drafts requires agent or lead role',
+            409: `Draft has already been reviewed: ${args.draft_id}`,
+          },
+        });
       }
     },
   );
