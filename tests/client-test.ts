@@ -277,6 +277,57 @@ async function main() {
   }
   console.log();
 
+  // Test 16: update_ticket — update status to "in_progress" on first ticket from Test 1
+  console.log('=== Test 16: update_ticket (set status=in_progress) ===');
+  if (!firstTicketId) {
+    console.log('No tickets returned from Test 1, skipping update_ticket test.');
+  } else {
+    console.log(`Updating ticket ID: ${firstTicketId}`);
+    const result16 = await client.callTool({
+      name: 'update_ticket',
+      arguments: { ticket_id: firstTicketId, status: 'in_progress' },
+    });
+    console.log('Result:', JSON.stringify(result16.content, null, 2));
+    if (result16.isError) {
+      console.log(`  isError: true`);
+    } else {
+      const updateData = JSON.parse((result16.content[0] as { text: string }).text);
+      console.log(`  updated_ticket.id: ${updateData.updated_ticket?.id}`);
+      console.log(`  updated_ticket.status: ${updateData.updated_ticket?.status}`);
+      console.log(`  fields_changed: ${JSON.stringify(updateData.fields_changed)}`);
+
+      // Confirm the change persisted with get_ticket
+      console.log('\n  Confirming change persisted with get_ticket...');
+      const confirmResult = await client.callTool({
+        name: 'get_ticket',
+        arguments: { ticket_id: firstTicketId },
+      });
+      const confirmedTicket = JSON.parse((confirmResult.content[0] as { text: string }).text);
+      console.log(`  confirmed status: ${confirmedTicket.status}`);
+    }
+  }
+  console.log();
+
+  // Test 17: update_ticket — no fields provided (client-side validation error)
+  console.log('=== Test 17: update_ticket (no fields — expect validation error) ===');
+  const result17 = await client.callTool({
+    name: 'update_ticket',
+    arguments: { ticket_id: '00000000-0000-0000-0000-000000000000' },
+  });
+  console.log('Result:', JSON.stringify(result17.content, null, 2));
+  console.log(`  isError: ${result17.isError}`);
+  console.log();
+
+  // Test 18: update_ticket — non-existent ticket (404 error)
+  console.log('=== Test 18: update_ticket (non-existent UUID) ===');
+  const result18 = await client.callTool({
+    name: 'update_ticket',
+    arguments: { ticket_id: '00000000-0000-0000-0000-000000000000', status: 'open' },
+  });
+  console.log('Result:', JSON.stringify(result18.content, null, 2));
+  console.log(`  isError: ${result18.isError}`);
+  console.log();
+
   await client.close();
   console.log('\nDone — all tests passed.');
 }

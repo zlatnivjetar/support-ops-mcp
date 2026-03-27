@@ -130,6 +130,20 @@ Milestone 2D was a verification pass — no new code was written. It confirmed t
 
 ---
 
+## Milestone 3D: `update_ticket` Tool
+
+`update_ticket` is the patch-fields tool — it sends a PATCH with any combination of status, priority, category, team, or assignee and returns a snapshot of the updated ticket. It's the tool an agent uses to apply triage predictions or manually adjust ticket properties after taking other actions.
+
+**Key decisions:**
+
+- **Fixing a latent double-read bug in the HTTP client's error path.** The original error handler called `response.json()` and, if that threw, called `response.text()` in the catch block. In Node.js's built-in fetch (undici), calling `.json()` marks the response body as "disturbed" the moment it starts — even if JSON parsing ultimately fails. The subsequent `.text()` call finds the body already disturbed and throws "Body is unusable: Body has already been read," which is not an `AsdApiError`, bypasses the tool's error handler, and surfaces as a raw exception. The fix is to read the body once with `.text()` and then attempt `JSON.parse()` separately, keeping the body consumed exactly once regardless of whether the content is valid JSON. This bug was latent across all previous tools but only triggered when the ASD backend returned a non-JSON error body — which first happened here when PATCH got a 500 with a plain-text body.
+
+- **Client-side validation for the no-op case.** The tool rejects calls where no update fields are provided before making any API call. A PATCH with an empty body would likely get a 422 from the server anyway, but catching it early returns a clearer, tool-specific message ("At least one field to update must be provided") and avoids a wasted network round-trip. This is the same principle as `review_draft`'s `edited_and_approved` check: validate at the tool boundary when the invalid case is structurally obvious from the inputs alone.
+
+- **`fields_changed` derived from inputs, not from diffing before/after state.** The response includes a `fields_changed` array listing which fields were actually provided in the call. This is computed from which arguments were non-undefined before the API call, not by comparing the pre-update and post-update ticket state. Diffing would require a `get_ticket` call before every update (extra latency, extra complexity), and it would conflate "field was provided but unchanged" with "field was not provided" — a subtle distinction that matters when an LLM is deciding what actions have been taken. Reporting what was sent is accurate, cheap, and unambiguous.
+
+---
+
 ## Milestone 3C: `review_draft` Tool
 
 `review_draft` is the human-in-the-loop gate — it submits an approval decision (approve, edit-and-approve, reject, or escalate) on a pending AI draft, closing the loop between AI generation and actual customer reply. It's the only tool whose output directly changes what gets sent to a customer.

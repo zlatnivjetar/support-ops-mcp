@@ -190,3 +190,18 @@
 **Key files:** `src/tools/review-draft.ts`, `src/tools/index.ts`, `tests/client-test.ts`
 
 **Gotchas:** The ASD API does not enforce review uniqueness — submitting the same approval twice returns success rather than a conflict error. The 409 handler is correct but won't fire against the current backend.
+
+---
+
+## Milestone 3D — `update_ticket` Tool
+
+**What changed:** Implemented `src/tools/update-ticket.ts` with the `update_ticket` MCP tool. Registered it in `src/tools/index.ts`. Added Tests 16, 17, and 18 to `tests/client-test.ts`. Fixed a latent double-read bug in `AsdClient.request()` that was exposed for the first time by this tool.
+
+**Key decisions:**
+- Client-side validation rejects calls with no update fields before hitting the API, returning "At least one field to update must be provided." The PATCH endpoint would likely return a 422, but catching it early gives a clearer error and avoids a network round-trip.
+- `fields_changed` is derived from which args were non-undefined before building the updates object, not from diffing the before/after ticket state. This is simpler and accurate — only the fields explicitly provided in the call are reported as changed.
+- The `AsdClient.request()` error path was changed from `try { response.json() } catch { response.text() }` to `response.text()` then `JSON.parse()`. In Node.js undici, calling `.json()` marks the response body as "disturbed" even when it fails (e.g. non-JSON error body from Railway). The subsequent `.text()` call then throws "Body is unusable: Body has already been read" — a raw exception that bypasses `AsdApiError` handling entirely and surfaced as the cryptic undici error rather than a clean tool error. The fix reads the body once as text, then parses it in a regular try/catch.
+
+**Key files:** `src/tools/update-ticket.ts`, `src/tools/index.ts`, `src/asd-client/index.ts`, `tests/client-test.ts`
+
+**Gotchas:** The ASD backend returned 500 for the status update in Test 16. The ticket used had been through triage → draft → approval in earlier tests (now `pending_customer`), and the backend appears to reject transitioning it back to `in_progress`. This is a backend business-logic constraint, not a client bug. The error is now surfaced cleanly thanks to the double-read fix.

@@ -60,12 +60,13 @@ export class AsdClient {
     });
 
     if (!response.ok) {
+      const rawText = await response.text();
       let detail: string;
       try {
-        const errorBody = await response.json();
+        const errorBody = JSON.parse(rawText);
         detail = errorBody.detail || JSON.stringify(errorBody);
       } catch {
-        detail = await response.text();
+        detail = rawText || `HTTP ${response.status}`;
       }
       throw new AsdApiError(response.status, detail, `${method} ${path}`);
     }

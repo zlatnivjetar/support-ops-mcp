@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 3D: `update_ticket` Tool**
+**→ Milestone 3E: Full Workflow Verification**
 
 Implementation plan: `docs/implementation-plan.md`
 
@@ -16,7 +16,7 @@ When I type exactly **COMPLETED**:
 
 1. Update "Current Milestone" at the top of this file to the next sub-milestone
 2. Append a summary to `docs/implementation-log.md`: what changed, key decisions made, key files touched, any gotchas
-3. Use the `/concepts-debrief` skill to append a concepts debrief to `docs/concepts-log.md`
+3. Use the `/concepts-debrief` skill to append a concepts debrief at the bottom of `docs/concepts-log.md`
 4. Commit with message: `milestone <ID>: <brief description>`
 
 Only the exact standalone input **COMPLETED** triggers this.

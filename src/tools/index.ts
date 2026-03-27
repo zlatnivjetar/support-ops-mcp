@@ -7,6 +7,7 @@ import { registerGetReviewQueue } from './get-review-queue.js';
 import { registerTriageTicket } from './triage-ticket.js';
 import { registerGenerateDraft } from './generate-draft.js';
 import { registerReviewDraft } from './review-draft.js';
+import { registerUpdateTicket } from './update-ticket.js';
 
 /**
  * Register all MCP tools on the server.
@@ -20,4 +21,5 @@ export function registerAllTools(server: McpServer, client: AsdClient) {
   registerTriageTicket(server, client);
   registerGenerateDraft(server, client);
   registerReviewDraft(server, client);
+  registerUpdateTicket(server, client);
 }
