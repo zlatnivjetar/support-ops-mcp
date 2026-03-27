@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "support-ops": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "env": {
+        "ASD_API_URL": "https://agent-service-desk-production.up.railway.app",
+        "ASD_JWT": "YOUR_JWT_HERE",
+        "TRANSPORT": "stdio"
+      }
+    }
+  }
+}

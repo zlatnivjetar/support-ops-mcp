@@ -2,6 +2,20 @@
 
 ---
 
+## Milestone 5A: Claude Code Integration
+
+Milestone 5A wires the MCP server into Claude Code as a per-project stdio tool, giving any developer who clones the repo a path from "I have a JWT" to "I can call support ops tools from my AI assistant" in a few steps.
+
+**Key decisions:**
+
+- **Gitignore the specific file, not the directory.** The plan called for ignoring `.claude/` to protect the JWT in `mcp.json`, while also committing `.claude/mcp.json.example` as a template. These two goals are incompatible: git cannot track files inside an ignored directory, so negation patterns like `!.claude/mcp.json.example` are silently ignored. The fix is to ignore the exact path `.claude/mcp.json` rather than the parent directory — precise exclusion instead of a broad rule with a carve-out that doesn't work.
+
+- **`npx tsx` as the command instead of a global binary.** The MCP config's `command` field runs a process on the developer's machine. Using `npx tsx src/index.ts` resolves `tsx` from the project's own `node_modules/.bin`, so the server works immediately after `npm install` with no separate global install step. The tradeoff is a small cold-start delay on first invocation while npx resolves the package.
+
+- **`TRANSPORT=stdio` set in the MCP env block, not in `.env`.** The server defaults to HTTP mode. Placing `TRANSPORT=stdio` inside the MCP config's `env` object means the override is scoped to Claude Code's spawned process — running `npm run dev` for local development still starts in HTTP mode. Keeping the two modes separate avoids needing to edit `.env` before switching contexts.
+
+---
+
 ## Milestone 4D: Hardening Verification
 
 Milestone 4D is a verification-only pass confirming that the three hardening changes from 4A–4C behave correctly end-to-end: consistent error shapes, timeout handling, and structured logging all work together under real failure conditions.

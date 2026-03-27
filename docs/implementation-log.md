@@ -2,6 +2,22 @@
 
 ---
 
+## Milestone 5A — Claude Code Integration
+
+**What changed:** Created `.claude/mcp.json.example` — a committed stdio config template for Claude Code users. Created `.claude/mcp.json` (gitignored) — the local config users fill in with their JWT. Updated `.gitignore` to ignore `.claude/mcp.json` specifically (not the whole `.claude/` dir, since gitignore can't un-ignore files inside an ignored directory).
+
+**Key decisions:**
+- The plan said "add `.claude/` to `.gitignore`" but also "commit `.claude/mcp.json.example`". These are contradictory because git cannot track files inside an ignored directory. Solution: ignore the specific file `.claude/mcp.json` rather than the directory, so the example stays tracked.
+- `ASD_JWT` left empty in the local `mcp.json` — user fills in their own long-lived token. Real JWT never committed.
+- `npx tsx src/index.ts` used as the command — avoids requiring a global `tsx` install; npx resolves from `node_modules/.bin`.
+- `TRANSPORT=stdio` set in the MCP env block — overrides the default HTTP mode so Claude Code spawns the process correctly.
+
+**Files touched:** `.claude/mcp.json` (new, gitignored), `.claude/mcp.json.example` (new), `.gitignore`
+
+**Gotchas:** Stdio transport startup emits "ASD_API_URL is required" to stderr when run without a `.env` file (as the test did), but this is correct — stderr only, stdout clean. The error confirms the startup message routing works as intended.
+
+---
+
 ## Milestone 4D — Hardening Verification
 
 **What changed:** No new production code. Fixed three additional unsafe `JSON.parse` calls in the test client that would crash when tool responses returned `isError: true` (lines 99, 345, 495 in `client-test.ts`). Added `tests/verify-hardening.ts` — a minimal MCP client that calls one tool and reports `isError`/message, used for targeted timeout and unreachable scenarios. Added `tests/run-hardening-verify.mjs` — a Node.js runner that spawns the server with env overrides, polls the health endpoint, runs the verifier, and kills the server.

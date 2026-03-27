@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 5A: Claude Code Integration**
+**→ Milestone 5B: Codex Integration**
 
 Implementation plan: `docs/implementation-plan-part2.md`
 
