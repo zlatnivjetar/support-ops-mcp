@@ -2,6 +2,20 @@
 
 ---
 
+## Milestone 5C: Integration Verification
+
+Milestone 5C verified the Claude Code MCP integration end-to-end and documented the JWT acquisition flow, surfacing a config location bug from 5A in the process.
+
+**Key decisions:**
+
+- **`.mcp.json` belongs at the project root, not inside `.claude/`.** Claude Code reads project-scoped MCP server configs from `.mcp.json` directly at the root — the `.claude/` directory is for Claude Code's own internal state (settings, sessions), not user-authored configs. The 5A implementation placed the template in `.claude/mcp.json.example` based on the plan's assumption; live verification revealed the correct location. The lesson is that MCP config conventions are tool-specific and worth checking against live docs rather than inferring from the directory name.
+
+- **Each client tool has its own config convention; don't conflate them.** Claude Code uses `.mcp.json` at the project root; Codex uses `.codex/config.toml` in a subdirectory. Both follow a stdio + env pattern, but the file locations and formats are independently defined by each tool's authors. Trying to unify them into a single config would mean hooking into neither tool's native discovery path.
+
+- **Defer docs to a dedicated file when the README is still a placeholder.** Rather than leaving JWT acquisition undocumented until 6A's README pass, a standalone `SETUP.md` gives users a working path immediately — clone, install, get JWT, run. The content will migrate into the README in 6A, so nothing is wasted; the separation just means each milestone delivers something independently usable.
+
+---
+
 ## Milestone 5B: Codex Integration
 
 Milestone 5B adds an MCP server config template for OpenAI's Codex CLI, giving Codex users the same "clone, fill in JWT, start calling tools" path that Claude Code users got in 5A.

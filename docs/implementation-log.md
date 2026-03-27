@@ -2,6 +2,22 @@
 
 ---
 
+## Milestone 5C — Integration Verification
+
+**What changed:** Created `SETUP.md` with JWT acquisition steps and setup instructions for both Claude Code and Codex CLI. Fixed the Claude Code MCP config location — moved from `.claude/mcp.json.example` to `.mcp.json.example` at the project root (the correct Claude Code location). Deleted the `.claude/` directory (now empty after the move). Populated local `.mcp.json` with the JWT from `.env` for live testing. Updated `.gitignore` accordingly.
+
+**Key decisions:**
+- `.mcp.json` belongs at the project root, not in `.claude/` — Claude Code reads project-scoped MCP configs from `.mcp.json` directly in the project root. The `.claude/` directory is for Claude Code's own internal state (settings, session data), not for user-authored MCP configs. The 5A implementation used the wrong path, discovered during 5C verification.
+- Codex config stays at `.codex/config.toml` — different tools have different conventions. Claude Code uses `.mcp.json` at root; Codex uses a `.codex/` subdirectory. Both are correct for their respective tools.
+- JWT acquisition documented in `SETUP.md` rather than the placeholder README — the full README is deferred to 6A. `SETUP.md` gives users a working path from clone to running tools without waiting for the polished docs.
+- Codex CLI verification remains deferred — CLI not installed in this environment. The config is structurally identical to a verified Claude Code setup.
+
+**Files touched:** `SETUP.md` (new), `.mcp.json.example` (new), `.mcp.json` (new, gitignored), `.claude/mcp.json.example` (removed), `.gitignore`, `SETUP.md`
+
+**Gotchas:** `.claude/mcp.json` was not gitignored after we changed the gitignore entry from `.claude/mcp.json` to `.mcp.json` — it would have been accidentally committable with the real JWT inside. Deleted the whole `.claude/` directory to eliminate the risk.
+
+---
+
 ## Milestone 5B — Codex Integration
 
 **What changed:** Created `.codex/config.toml.example` — a committed TOML config template for OpenAI Codex CLI users. Updated `.gitignore` to ignore `.codex/config.toml` (the real file users populate with their JWT).

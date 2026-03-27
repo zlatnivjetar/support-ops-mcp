@@ -4,8 +4,8 @@ dist/
 .env.local
 *.tgz
 
-# Claude Code MCP config (contains user-specific JWT — fill in from mcp.json.example)
-.claude/mcp.json
+# Claude Code MCP config (contains user-specific JWT — fill in from .mcp.json.example)
+.mcp.json
 
 # Codex CLI MCP config (contains user-specific JWT — fill in from config.toml.example)
 .codex/config.toml

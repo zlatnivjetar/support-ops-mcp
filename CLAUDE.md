@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 5C: Integration Verification**
+**→ Milestone 6A: README**
 
 Implementation plan: `docs/implementation-plan-part2.md`
 
