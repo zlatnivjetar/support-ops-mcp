@@ -127,3 +127,19 @@ Milestone 2D was a verification pass — no new code was written. It confirmed t
 - **Error cases are first-class test targets.** Three negative cases were verified alongside the happy paths: a non-existent UUID, an empty query string, and a role-gated 403. Testing only the success path leaves a gap — if error handling is broken, the LLM will receive a crash or raw exception text instead of a structured `isError` response, which it can't act on gracefully. Verifying error shape at this stage means the error contract is confirmed before action tools build on top of it.
 
 - **No code changes signals the milestone was built correctly the first time.** A verification milestone that requires fixes is a sign that the preceding implementation milestone was incomplete. The fact that 2D required zero changes confirms that the tool pattern established in 1D — Zod validation → ASD client call → structured JSON response → `isError` on API error — was applied consistently across all four tools. This matters because Milestone 3 introduces mutation tools where errors have real consequences; knowing the error handling pattern is solid reduces risk.
+
+---
+
+## Milestone 3A: `triage_ticket` Tool
+
+`triage_ticket` is the first action tool — it fires the ASD AI classification pipeline on a specific ticket and returns a prediction record containing category, priority, team, escalation recommendation, and confidence score. It marks the transition from read-only tools to tools that create persistent state in the backend.
+
+**Key decisions:**
+
+- **Triage is append-only, and the `note` field communicates this to the LLM.** Calling `triage_ticket` does not change the ticket — it creates a new prediction record in a separate table. An LLM that doesn't understand this distinction might assume the ticket is now classified and skip calling `update_ticket`, leaving the ticket fields unchanged in the ASD database. The `note` field in every response explicitly says: "Prediction stored separately from ticket. Use update_ticket to apply these values." This turns a silent architectural fact into actionable guidance surfaced at exactly the right moment.
+
+- **Status-specific error messages for the failure modes that matter.** Three error codes get distinct treatment: 404 ("Ticket not found"), 403 ("Triage requires agent or lead role"), and 504 ("Triage timed out — the AI backend may be under load. Try again."). The 504 case is the most important — it is not a programming error or a bad request, it's an expected failure mode when the OpenAI call inside the ASD pipeline takes too long. A generic "HTTP 504" message tells the LLM nothing useful; a message that names the cause and suggests retrying gives it a recovery path.
+
+- **`latency_ms` is surfaced from the API response, not measured client-side.** The ASD API includes a `latency_ms` field on the `TriageResult` type that measures how long the internal AI call took, and the tool passes it through directly. This is more accurate than wrapping the whole `client.triageTicket()` call in a `Date.now()` delta — client-side timing includes network overhead and serialisation, whereas the API's figure isolates the AI pipeline duration. Surfacing it lets a downstream agent (or a human reading logs) distinguish a slow AI call from a slow network.
+
+---

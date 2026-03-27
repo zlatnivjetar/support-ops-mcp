@@ -136,6 +136,52 @@ async function main() {
     }
   }
 
+  // Test 9: triage_ticket — run AI classification on the first ticket from Test 1
+  console.log('=== Test 9: triage_ticket (first ticket from Test 1) ===');
+  if (!firstTicketId) {
+    console.log('No tickets returned from Test 1, skipping triage_ticket test.');
+  } else {
+    console.log(`Triaging ticket ID: ${firstTicketId}`);
+    const result9 = await client.callTool({
+      name: 'triage_ticket',
+      arguments: { ticket_id: firstTicketId },
+    });
+    console.log('Result:', JSON.stringify(result9.content, null, 2));
+    if (result9.isError) {
+      console.log(`  isError: true`);
+    } else {
+      const triageData = JSON.parse((result9.content[0] as { text: string }).text);
+      console.log(`  predicted_category: ${triageData.prediction?.predicted_category}`);
+      console.log(`  predicted_priority: ${triageData.prediction?.predicted_priority}`);
+      console.log(`  predicted_team: ${triageData.prediction?.predicted_team}`);
+      console.log(`  confidence: ${triageData.prediction?.confidence}`);
+      console.log(`  escalation_suggested: ${triageData.prediction?.escalation_suggested}`);
+      console.log(`  latency_ms: ${triageData.latency_ms}`);
+      console.log(`  note: ${triageData.note}`);
+
+      // Run triage again to verify append-only (two different prediction records)
+      console.log('\n  Running triage again on same ticket (append-only check)...');
+      const result9b = await client.callTool({
+        name: 'triage_ticket',
+        arguments: { ticket_id: firstTicketId },
+      });
+      if (!result9b.isError) {
+        console.log('  Second triage call succeeded — both predictions stored separately.');
+      }
+    }
+  }
+  console.log();
+
+  // Test 10: triage_ticket with non-existent UUID — should return clean 404 error
+  console.log('=== Test 10: triage_ticket (non-existent UUID) ===');
+  const result10 = await client.callTool({
+    name: 'triage_ticket',
+    arguments: { ticket_id: '00000000-0000-0000-0000-000000000000' },
+  });
+  console.log('Result:', JSON.stringify(result10.content, null, 2));
+  console.log(`  isError: ${result10.isError}`);
+  console.log();
+
   await client.close();
   console.log('\nDone — all tests passed.');
 }

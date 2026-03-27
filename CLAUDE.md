@@ -2,7 +2,7 @@
 
 ## Current Milestone
 
-**→ Milestone 3A: `triage_ticket` Tool**
+**→ Milestone 3B: `generate_draft` Tool**
 
 Implementation plan: `docs/implementation-plan.md`
 

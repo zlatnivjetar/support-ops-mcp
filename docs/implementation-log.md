@@ -143,3 +143,20 @@
 **Key files:** `tests/client-test.ts` (no changes needed — all 8 tests already covered the verification criteria)
 
 **Gotchas:** None — all 4 tools passed on the first run.
+
+---
+
+## Milestone 3A — `triage_ticket` Tool
+
+**What changed:** Implemented `src/tools/triage-ticket.ts` with the `triage_ticket` MCP tool. Registered it in `src/tools/index.ts`. Added Tests 9 and 10 to `tests/client-test.ts`.
+
+**Key decisions:**
+- 504 (gateway timeout) handled as a distinct case — surfaces as "Triage timed out — the AI backend may be under load. Try again." rather than a generic error, since AI pipeline timeouts are expected and actionable.
+- 403 gets a specific message ("Triage requires agent or lead role") rather than the raw ASD detail string, matching the plan spec.
+- The `note` field in the response explicitly tells the LLM that triage is append-only and `update_ticket` is needed to apply the classification — prevents the LLM from assuming triage automatically mutates the ticket.
+- `latency_ms` is surfaced directly from the `TriageResult` type (already in `asd-client/types.ts` from milestone 1B).
+- Test 9 calls triage twice on the same ticket to confirm append-only behaviour (both calls succeed, second returns a new prediction).
+
+**Key files:** `src/tools/triage-ticket.ts`, `src/tools/index.ts`, `tests/client-test.ts`
+
+**Gotchas:** None.

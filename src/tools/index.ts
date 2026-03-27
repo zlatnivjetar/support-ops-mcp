@@ -4,6 +4,7 @@ import { registerSearchTickets } from './search-tickets.js';
 import { registerGetTicket } from './get-ticket.js';
 import { registerSearchKnowledge } from './search-knowledge.js';
 import { registerGetReviewQueue } from './get-review-queue.js';
+import { registerTriageTicket } from './triage-ticket.js';
 
 /**
  * Register all MCP tools on the server.
@@ -14,4 +15,5 @@ export function registerAllTools(server: McpServer, client: AsdClient) {
   registerGetTicket(server, client);
   registerSearchKnowledge(server, client);
   registerGetReviewQueue(server, client);
+  registerTriageTicket(server, client);
 }
