@@ -2,45 +2,17 @@
 
 ---
 
-## Milestone 3A: `triage_ticket` Tool
+## Milestone 3E: Full Workflow Verification
 
-`triage_ticket` is the first action tool — it fires the ASD AI classification pipeline on a specific ticket and returns a prediction record containing category, priority, team, escalation recommendation, and confidence score. It marks the transition from read-only tools to tools that create persistent state in the backend.
-
-**Key decisions:**
-
-- **Triage is append-only, and the `note` field communicates this to the LLM.** Calling `triage_ticket` does not change the ticket — it creates a new prediction record in a separate table. An LLM that doesn't understand this distinction might assume the ticket is now classified and skip calling `update_ticket`, leaving the ticket fields unchanged in the ASD database. The `note` field in every response explicitly says: "Prediction stored separately from ticket. Use update_ticket to apply these values." This turns a silent architectural fact into actionable guidance surfaced at exactly the right moment.
-
-- **Status-specific error messages for the failure modes that matter.** Three error codes get distinct treatment: 404 ("Ticket not found"), 403 ("Triage requires agent or lead role"), and 504 ("Triage timed out — the AI backend may be under load. Try again."). The 504 case is the most important — it is not a programming error or a bad request, it's an expected failure mode when the OpenAI call inside the ASD pipeline takes too long. A generic "HTTP 504" message tells the LLM nothing useful; a message that names the cause and suggests retrying gives it a recovery path.
-
-- **`latency_ms` is surfaced from the API response, not measured client-side.** The ASD API includes a `latency_ms` field on the `TriageResult` type that measures how long the internal AI call took, and the tool passes it through directly. This is more accurate than wrapping the whole `client.triageTicket()` call in a `Date.now()` delta — client-side timing includes network overhead and serialisation, whereas the API's figure isolates the AI pipeline duration. Surfacing it lets a downstream agent (or a human reading logs) distinguish a slow AI call from a slow network.
-
----
-
-## Milestone 3B: `generate_draft` Tool
-
-`generate_draft` triggers the RAG-grounded draft generation pipeline — the ASD backend retrieves relevant knowledge base chunks, then uses them as evidence to write a reply — and is the most computationally expensive tool in the server, sitting between triage (classification) and review (human approval) in the support workflow.
+Milestone 3E is the integration gate for all of Milestone 3 — it runs four end-to-end scenarios that chain all seven tools together in the sequences a real support agent would use, confirming that the tools compose correctly rather than just work in isolation.
 
 **Key decisions:**
 
-- **`next_steps` as explicit workflow guidance.** The response includes a `next_steps` field telling the LLM to use `review_draft` next. Without it, the LLM has no signal that draft generation is a non-terminal action — it might surface the draft to the user as if it were already sent, or stall waiting for further instructions. This is the same pattern as `triage_ticket`'s `note` field: both tools create records that require a subsequent action to take effect, so both responses name that action explicitly.
+- **Test state isolation by picking fresh tickets.** The workflow scenarios avoid reusing tickets that unit tests have already put through the full pipeline, because those tickets end up in states (e.g. `pending_customer` after approval) that cause the ASD backend to reject further status updates with a 500. Scenario A filters out the ticket used in unit tests and picks a clean `open` one. This surfaces an important backend constraint: ticket status transitions are not freely reversible — operating on a ticket that has already been approved and resolved will fail, even if the individual tool call is otherwise valid.
 
-- **Field renaming at the serialisation boundary.** The API returns `approval_outcome`; the tool exposes it as `approval_status`. The rename happens only in the JSON the tool returns — the underlying `DraftResult` type and client method are untouched. This matters because the LLM reads field names as semantic labels: "approval_outcome" implies a past event, while "approval_status" implies a current state to act on. Renaming at the boundary keeps the API contract stable while making the LLM-facing vocabulary match the tool's description.
+- **Append-only draft behaviour verified through Scenario B.** Generating a draft, rejecting it, then generating again produces two records with distinct IDs — the second call doesn't overwrite or reuse the first. This matters because the review workflow depends on draft IDs being stable and unique: if `generate_draft` were idempotent and returned the same ID on retry, a rejection followed by a redraft would still point to the rejected record, making `review_draft` operate on stale data.
 
-- **`evidence_chunks_cited` as a count, not a list.** The raw API response includes `evidence_chunk_ids` — an array of UUIDs referencing the knowledge chunks the AI cited. The tool exposes only the count. Chunk IDs are internal identifiers the LLM can't dereference without a separate lookup; a count gives the LLM a useful signal (did the AI have supporting material?) without cluttering the response with opaque strings. The current ASD backend packs citation data into the body string rather than the `evidence_chunk_ids` array, so the count reads as 0 — a backend data quality issue, not a client bug.
-
----
-
-## Milestone 3C: `review_draft` Tool
-
-`review_draft` is the human-in-the-loop gate — it submits an approval decision (approve, edit-and-approve, reject, or escalate) on a pending AI draft, closing the loop between AI generation and actual customer reply. It's the only tool whose output directly changes what gets sent to a customer.
-
-**Key decisions:**
-
-- **Client-side validation before the API call.** The `edited_and_approved` action requires an `edited_body` — if that field is missing, the tool returns a structured error immediately without making a network request. Relying on the API to catch this would produce a generic 400 with an opaque message; catching it in the handler lets you return a precise, actionable error ("edited_body is required when action is edited_and_approved") at zero cost. This pattern is worth applying to any tool where a missing combination of optional fields makes a request semantically invalid.
-
-- **Action-specific result messages over a single generic confirmation.** Each of the four actions produces a different outcome in the ASD backend — approved drafts update the ticket status, rejections leave it open, escalations flag it for a different queue. Rather than returning the raw API response (which doesn't describe what happened in plain terms), the tool maps each action to a human-readable result string. This gives the LLM enough context to decide what to do next without reading the ASD documentation.
-
-- **Defensive 409 handling for idempotent backends.** The tool includes a specific handler for HTTP 409 Conflict, which would fire if the API enforced that a draft can only be reviewed once. In practice, the ASD backend accepted a second approval on the same draft without error — it treats review submissions as idempotent rather than enforcing uniqueness. The 409 handler is correct and harmless, but it won't trigger against the current backend; if the API ever tightens this constraint, the error message is already in place.
+- **Performance targets are aspirational, not hard limits at the MCP layer.** The plan specifies `generate_draft` should complete in under 8 seconds, but Scenario A saw 21 seconds. The MCP protocol itself has no built-in timeout — the connection stays open as long as the underlying transport is alive, so a slow AI backend call doesn't break the protocol. The constraint that matters is Railway's server-side request timeout (which would surface as a 504, already handled in the tool). The 8s target is a user-experience guideline, not an enforced boundary.
 
 ---
 
@@ -58,17 +30,45 @@
 
 ---
 
-## Milestone 3E: Full Workflow Verification
+## Milestone 3C: `review_draft` Tool
 
-Milestone 3E is the integration gate for all of Milestone 3 — it runs four end-to-end scenarios that chain all seven tools together in the sequences a real support agent would use, confirming that the tools compose correctly rather than just work in isolation.
+`review_draft` is the human-in-the-loop gate — it submits an approval decision (approve, edit-and-approve, reject, or escalate) on a pending AI draft, closing the loop between AI generation and actual customer reply. It's the only tool whose output directly changes what gets sent to a customer.
 
 **Key decisions:**
 
-- **Test state isolation by picking fresh tickets.** The workflow scenarios avoid reusing tickets that unit tests have already put through the full pipeline, because those tickets end up in states (e.g. `pending_customer` after approval) that cause the ASD backend to reject further status updates with a 500. Scenario A filters out the ticket used in unit tests and picks a clean `open` one. This surfaces an important backend constraint: ticket status transitions are not freely reversible — operating on a ticket that has already been approved and resolved will fail, even if the individual tool call is otherwise valid.
+- **Client-side validation before the API call.** The `edited_and_approved` action requires an `edited_body` — if that field is missing, the tool returns a structured error immediately without making a network request. Relying on the API to catch this would produce a generic 400 with an opaque message; catching it in the handler lets you return a precise, actionable error ("edited_body is required when action is edited_and_approved") at zero cost. This pattern is worth applying to any tool where a missing combination of optional fields makes a request semantically invalid.
 
-- **Append-only draft behaviour verified through Scenario B.** Generating a draft, rejecting it, then generating again produces two records with distinct IDs — the second call doesn't overwrite or reuse the first. This matters because the review workflow depends on draft IDs being stable and unique: if `generate_draft` were idempotent and returned the same ID on retry, a rejection followed by a redraft would still point to the rejected record, making `review_draft` operate on stale data.
+- **Action-specific result messages over a single generic confirmation.** Each of the four actions produces a different outcome in the ASD backend — approved drafts update the ticket status, rejections leave it open, escalations flag it for a different queue. Rather than returning the raw API response (which doesn't describe what happened in plain terms), the tool maps each action to a human-readable result string. This gives the LLM enough context to decide what to do next without reading the ASD documentation.
 
-- **Performance targets are aspirational, not hard limits at the MCP layer.** The plan specifies `generate_draft` should complete in under 8 seconds, but Scenario A saw 21 seconds. The MCP protocol itself has no built-in timeout — the connection stays open as long as the underlying transport is alive, so a slow AI backend call doesn't break the protocol. The constraint that matters is Railway's server-side request timeout (which would surface as a 504, already handled in the tool). The 8s target is a user-experience guideline, not an enforced boundary.
+- **Defensive 409 handling for idempotent backends.** The tool includes a specific handler for HTTP 409 Conflict, which would fire if the API enforced that a draft can only be reviewed once. In practice, the ASD backend accepted a second approval on the same draft without error — it treats review submissions as idempotent rather than enforcing uniqueness. The 409 handler is correct and harmless, but it won't trigger against the current backend; if the API ever tightens this constraint, the error message is already in place.
+
+---
+
+## Milestone 3B: `generate_draft` Tool
+
+`generate_draft` triggers the RAG-grounded draft generation pipeline — the ASD backend retrieves relevant knowledge base chunks, then uses them as evidence to write a reply — and is the most computationally expensive tool in the server, sitting between triage (classification) and review (human approval) in the support workflow.
+
+**Key decisions:**
+
+- **`next_steps` as explicit workflow guidance.** The response includes a `next_steps` field telling the LLM to use `review_draft` next. Without it, the LLM has no signal that draft generation is a non-terminal action — it might surface the draft to the user as if it were already sent, or stall waiting for further instructions. This is the same pattern as `triage_ticket`'s `note` field: both tools create records that require a subsequent action to take effect, so both responses name that action explicitly.
+
+- **Field renaming at the serialisation boundary.** The API returns `approval_outcome`; the tool exposes it as `approval_status`. The rename happens only in the JSON the tool returns — the underlying `DraftResult` type and client method are untouched. This matters because the LLM reads field names as semantic labels: "approval_outcome" implies a past event, while "approval_status" implies a current state to act on. Renaming at the boundary keeps the API contract stable while making the LLM-facing vocabulary match the tool's description.
+
+- **`evidence_chunks_cited` as a count, not a list.** The raw API response includes `evidence_chunk_ids` — an array of UUIDs referencing the knowledge chunks the AI cited. The tool exposes only the count. Chunk IDs are internal identifiers the LLM can't dereference without a separate lookup; a count gives the LLM a useful signal (did the AI have supporting material?) without cluttering the response with opaque strings. The current ASD backend packs citation data into the body string rather than the `evidence_chunk_ids` array, so the count reads as 0 — a backend data quality issue, not a client bug.
+
+---
+
+## Milestone 3A: `triage_ticket` Tool
+
+`triage_ticket` is the first action tool — it fires the ASD AI classification pipeline on a specific ticket and returns a prediction record containing category, priority, team, escalation recommendation, and confidence score. It marks the transition from read-only tools to tools that create persistent state in the backend.
+
+**Key decisions:**
+
+- **Triage is append-only, and the `note` field communicates this to the LLM.** Calling `triage_ticket` does not change the ticket — it creates a new prediction record in a separate table. An LLM that doesn't understand this distinction might assume the ticket is now classified and skip calling `update_ticket`, leaving the ticket fields unchanged in the ASD database. The `note` field in every response explicitly says: "Prediction stored separately from ticket. Use update_ticket to apply these values." This turns a silent architectural fact into actionable guidance surfaced at exactly the right moment.
+
+- **Status-specific error messages for the failure modes that matter.** Three error codes get distinct treatment: 404 ("Ticket not found"), 403 ("Triage requires agent or lead role"), and 504 ("Triage timed out — the AI backend may be under load. Try again."). The 504 case is the most important — it is not a programming error or a bad request, it's an expected failure mode when the OpenAI call inside the ASD pipeline takes too long. A generic "HTTP 504" message tells the LLM nothing useful; a message that names the cause and suggests retrying gives it a recovery path.
+
+- **`latency_ms` is surfaced from the API response, not measured client-side.** The ASD API includes a `latency_ms` field on the `TriageResult` type that measures how long the internal AI call took, and the tool passes it through directly. This is more accurate than wrapping the whole `client.triageTicket()` call in a `Date.now()` delta — client-side timing includes network overhead and serialisation, whereas the API's figure isolates the AI pipeline duration. Surfacing it lets a downstream agent (or a human reading logs) distinguish a slow AI call from a slow network.
 
 ---
 
