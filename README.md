@@ -1,4 +1,4 @@
-# support-ops-mcp
+# Support Ops MCP
 
 TypeScript MCP server that exposes Agent Service Desk support workflows as tools for Claude Code, Codex, and other MCP clients.
 
